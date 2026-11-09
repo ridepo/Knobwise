@@ -14,7 +14,7 @@ The last knob is the modulator, which acts on everything.
 | Knob | Name | Stage | Clockwise | Home of these destinations |
 |---|---|---|---|---|
 | 1 | **Tone** | oscillators | soft to harsh | Osc 1/2: interpolate, PW/index, v-sync, density, density detune, semitones, cents, level; ring mod; noise |
-| 2 | **Cutoff** | filter | centre = the saved sound; left closes, right opens | Filter frequency, filter tracking |
+| 2 | **Cutoff** | filter | brighter (opens the filter) | Filter frequency, filter tracking |
 | 3 | **Resonance** | filter | more resonance | Filter resonance |
 | 4 | **Env Mod** | filter | more filter envelope | Env 2 → frequency |
 | 5 | **Attack** | amplifier | percussive to soft | Env 1 attack, Env 2 attack |
@@ -29,8 +29,8 @@ For techno and acid, knobs 2, 3, 4 and 6 are the TB-303 block: cutoff, resonance
 1. **Every macro destination has exactly one home knob** (table above). Knob N only uses destinations whose home is knob N.
 2. The only exception is **Post FX level**: it has no home, because a knob must never change the patch volume.
 3. Clockwise always gives **“more”** of the function. For matrix depths and Env 2 → frequency, the knob increases the amount in the direction the patch already uses.
-4. **Stored position = 0** (fully left) for every knob except **2 “Cutoff”**, stored at **64** (centre).
-5. A freshly loaded patch sounds exactly as designed: base parameter values take the stored position into account.
+4. **The stored position is free**: the patch designer chooses where each knob starts. A knob stored in the middle can go both ways (for example Length: shorter to the left, longer to the right); a knob stored fully right has no room left for “more”.
+5. A freshly loaded patch sounds exactly as designed, whatever the stored positions.
 6. Resonance and filter envelope amount stay on two separate knobs, so they can be balanced against each other.
 7. All 8 knobs have at least one destination with a non-zero depth that has an audible effect (the parameter must not already be at its limit).
 8. Every patch has its own name (not “Initial Patch”) and a category.
@@ -42,10 +42,11 @@ For techno and acid, knobs 2, 3, 4 and 6 are the TB-303 block: cutoff, resonance
 - **Complete to standard**:
   - moves misplaced destinations to their home knob, keeping start, end and depth;
   - removes Post FX level from the knobs;
-  - fills empty knobs with the standard assignments;
-  - sets stored positions to the standard.
+  - fills empty knobs with the standard assignments.
 
-  The patch keeps sounding the same when loaded. If the home knob already has 4 destinations, the misplaced one stays where it is and is reported.
+  Stored positions are left as they are. Only a knob that was empty gets a suggested starting position: 64 for Cutoff, so it can close and open the filter, and 0 for the others.
+
+  The patch keeps sounding the same when loaded: the editor recalculates the base value of each affected parameter, taking all its macro slots into account. Only if the base value would leave its range does it also adjust the start or end of a moved slot. In the rare cases where the sound cannot be kept exactly (for example a knob stored fully right with the parameter already at its limit), it says so. If the home knob already has 4 destinations, the misplaced one stays where it is and is reported.
 - **Rewrite all knobs** replaces all 8 knobs with the standard assignments.
 - In a bank, **Check standard** shows the state of all 64 patches; **Complete the whole bank** converts them.
 
@@ -54,7 +55,7 @@ For techno and acid, knobs 2, 3, 4 and 6 are the TB-303 block: cutoff, resonance
 | Knob | Slots created |
 |---|---|
 | 1 | for each audible oscillator: interpolate if the waveform is a wavetable, PW/index if the waveform uses it, otherwise v-sync |
-| 2 | Filter frequency +50, position 64, base frequency lowered to keep the sound |
+| 2 | Filter frequency +50; an empty knob is set to position 64 and the base frequency is lowered to keep the sound |
 | 3 | Filter resonance +50 |
 | 4 | Env 2 → frequency ±40, in the direction already set |
 | 5 | Env 1 attack +40, Env 2 attack +40 |

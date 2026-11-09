@@ -31,7 +31,7 @@ Safari does not support Web MIDI. Firefox needs MIDI permission for the site.
 | Knob | Name | Clockwise |
 |---|---|---|
 | 1 | Tone | soft to harsh |
-| 2 | Cutoff | centre = the saved sound; left closes, right opens |
+| 2 | Cutoff | brighter (opens the filter) |
 | 3 | Resonance | more resonance |
 | 4 | Env Mod | more filter envelope |
 | 5 | Attack | percussive to soft |
@@ -39,7 +39,7 @@ Safari does not support Web MIDI. Firefox needs MIDI permission for the site.
 | 7 | Drive | clean to saturated |
 | 8 | Motion | still to alive |
 
-Left to right, the knobs follow the signal path: oscillators → filter → amplifier → distortion, with the modulator last. Knobs 2, 3, 4 and 6 form the TB-303 block for acid and techno.
+The standard fixes what each knob does and its direction; where each knob starts is up to the patch designer. Left to right, the knobs follow the signal path: oscillators → filter → amplifier → distortion, with the modulator last. Knobs 2, 3, 4 and 6 form the TB-303 block for acid and techno.
 
 The full rules, the destinations that belong to each knob and the hardware tests behind them are in [STANDARD.md](STANDARD.md).
 

@@ -363,7 +363,7 @@ dialog.big{max-width:min(860px,calc(100% - 32px));width:100%}
 <script>
 'use strict';
 /* Editor version: change it here at every release. It is shown at the bottom of the page. */
-const APP_VERSION='0.1.3';
+const APP_VERSION='0.2.0';
 const APP_DATE='2026-11-09';
 /* =====================================================================
    Data from the "Circuit Programmer's Reference Guide" (Novation)
@@ -390,7 +390,7 @@ const MACRO_ADDR=[null,33,59,37,38,39,40,41,42,43,46,47,48,49,50,51,52,54,55,56,
    KNOB STANDARD
    - knob n → always the same function (STD[n-1])
    - clockwise = "more"
-   - stored position = 0 (64 for Cutoff): a loaded patch sounds as designed
+   - stored position free: a loaded patch sounds as designed
    ===================================================================== */
 const MOD_DEPTHS=Array.from({length:20},(_,i)=>51+i);
 const isWT=w=>w>=14, hasPW=w=>(w>=3&&w<=12)||w>=14;
@@ -403,7 +403,7 @@ const STD=[
      if(osc1On(b)) osc(b[36],3,4,5);
      if(osc2On(b)) osc(b[45],10,11,12);
      return t.length?t:[{d:20,dir:1,amt:40}]}},
-  {name:'Cutoff',cw:'Centre = the saved sound: left closes, right opens',home:64,
+  {name:'Cutoff',cw:'Brighter: opens the filter',pos:64,
    allowed:[21,24],rules:{21:'+'},
    template:()=>[{d:21,dir:1,amt:50}]},
   {name:'Resonance',cw:'More resonance',
@@ -434,7 +434,7 @@ const STD_RULES=[
   'Knob N has the same function in every patch and only uses destinations of that function. Every destination has exactly one home knob.',
   'Left to right, the knobs follow the signal path: oscillators → filter → amplifier → distortion. The last knob is the modulator, which acts on everything.',
   'Clockwise always gives “more” of the function: harsher, brighter, more resonance, more envelope, slower, longer, dirtier, more motion.',
-  'Stored position = 0 (fully left) for every knob except 2 “Cutoff”, stored at the centre (64). A freshly loaded patch sounds exactly as designed.',
+  'The stored position is free: the patch designer chooses where each knob starts. A freshly loaded patch always sounds as designed.',
   'Resonance and filter envelope amount stay on two separate knobs, so they can be balanced against each other.',
   'All 8 knobs have at least one destination with an audible effect. No knob controls the Post FX level, so turning a knob never changes the patch volume.',
   'Every patch has its own name (not “Initial Patch”) and a category.',
@@ -457,8 +457,6 @@ function checkPatch(b){
     const add=(l,text)=>{msgs.push({level:l,text});if(l==='err')level='err';else if(level!=='err')level='warn'};
     const slots=[0,1,2,3].map(r=>a+1+r*4).filter(s=>b[s]!==0);
     if(!slots.length) add('err','No destination assigned');
-    const home=S.home??0;
-    if(b[a]!==home) add('warn',`Stored position ${b[a]}: the standard wants ${home}`);
     for(const s of slots){
       const d=b[s],nm=MACRO_DST[d]??`#${d}`,sl='ABCD'[(s-a-1)/4];
       if(!S.allowed.includes(d)){const h=DEST_HOME[d];
@@ -484,29 +482,34 @@ function checkPatch(b){
 /* home knob of each macro destination (null = allowed on no knob: Post FX level) */
 const DEST_HOME=MACRO_DST.map((_,d)=>{const k=STD.findIndex(S=>S.allowed.includes(d));return k<0?null:k});
 const slotAddr=(k,r)=>204+k*17+1+r*4;
-/* fold the slot's effect at knob position P into the base value */
-function bake(b,s,P){
-  const addr=MACRO_ADDR[b[s]],p=PARAMS[String(addr)];if(!p||p.options) return;
-  b[addr]=Math.min(p.max,Math.max(p.min,Math.round(b[addr]+contrib(b,s,P))));
+/* value of a parameter heard when the patch loads: base value plus the effect of every macro slot
+   on it, each at its knob's stored position, clamped to the parameter range */
+function loadValue(b,addr){
+  const p=PARAMS[String(addr)];let v=b[addr];
+  for(let k=0;k<8;k++)for(let r=0;r<4;r++){const s=slotAddr(k,r);if(b[s]&&MACRO_ADDR[b[s]]===addr) v+=contrib(b,s,b[204+k*17])}
+  return Math.min(p.max,Math.max(p.min,v));
 }
-/* subtract the effect at position H from the base value, so the sound stays the same.
-   If the value would go out of range, keep it at the limit and move the slot start instead. */
-function unbake(b,s,H){
-  const addr=MACRO_ADDR[b[s]],p=PARAMS[String(addr)];if(!p||p.options) return;
-  const want=contrib(b,s,H);if(!want) return;
-  const base=b[addr],nb=base-want;
-  if(nb>=p.min&&nb<=p.max){b[addr]=Math.round(nb);return}
-  const lim=nb<p.min?p.min:p.max, en=b[s+2];
-  const F=(b[s+3]-64)/64*(p.max-p.min), r=F?(base-lim)/F:0;   // 0 ≤ r < 1
-  b[addr]=lim;
-  b[s+1]=Math.round(Math.min(H,Math.max(0,(H-r*en)/(1-r))));
+/* choose start and end of a slot so that its effect at knob position H is as close as possible
+   to `want` (between 0 and the slot's full effect), changing start and end as little as possible */
+function fitSlot(b,s,H,want){
+  const st0=b[s+1],en0=b[s+2];let best=null;
+  for(let st=0;st<=127;st++)for(let en=st;en<=127;en++){
+    b[s+1]=st;b[s+2]=en;
+    const cost=Math.abs(contrib(b,s,H)-want)*1000+Math.abs(st-st0)+Math.abs(en-en0);
+    if(!best||cost<best.cost) best={cost,st,en};
+  }
+  b[s+1]=best.st;b[s+2]=best.en;
+  return contrib(b,s,H);
 }
-/* mode 'fill': move misplaced destinations to their home knob, remove only Post FX,
-                fill empty knobs and set stored positions to the standard.
+/* mode 'fill': move misplaced destinations to their home knob, remove only Post FX
+                and fill empty knobs. Stored positions are left as they are.
    mode 'all' : rewrite every knob with the standard assignments.
-   Returns what was done. */
+   Moved slots keep start, end and depth; the parameter base values are then recalculated
+   so that the patch sounds the same when loaded. Returns what was done. */
 function applyStandard(b,mode='fill'){
-  const homes=STD.map(S=>S.home??0), log={moved:[],removed:[],stuck:[],filled:[],positions:[]};
+  const sugg=STD.map(S=>S.pos??0), log={moved:[],removed:[],stuck:[],filled:[],approx:[]};
+  const target={}, adjustable=new Set();
+  const remember=addr=>{const p=PARAMS[String(addr)];if(p&&!p.options&&!(addr in target)) target[addr]=loadValue(b,addr)};
   // 1. plan: which slots stay, which move
   const stay=[0,0,0,0,0,0,0,0], out=[];
   for(let k=0;k<8;k++) for(let r=0;r<4;r++){
@@ -514,49 +517,74 @@ function applyStandard(b,mode='fill'){
     const h=mode==='all'?-1:DEST_HOME[d];
     if(h===k) stay[k]++; else out.push({k,r,s,d,h});
   }
-  const free=stay.map(n=>4-n), moves=[];
-  for(const o of out){
-    if(o.h==null||o.h===-1){o.drop=true;continue}
-    if(free[o.h]>0){free[o.h]--;moves.push(o)}
-    else{log.stuck.push({d:o.d,from:o.k,to:o.h});stay[o.k]++}   // target knob full: leave it where it is
+  for(const o of out) if(o.h==null||o.h===-1) o.drop=true;
+  // a slot that cannot move (its home knob is full) keeps its place and takes room on its own knob:
+  // repeat the assignment until no new slot gets stuck
+  const stuck=new Set();let moves=[];
+  for(;;){
+    const free=stay.map((n,k)=>4-n-out.filter(o=>stuck.has(o)&&o.k===k).length);
+    moves=[];let changed=false;
+    for(const o of out){
+      if(o.drop||stuck.has(o)) continue;
+      if(free[o.h]>0){free[o.h]--;moves.push(o)} else{stuck.add(o);changed=true}
+    }
+    if(!changed) break;
   }
-  // 2. lift the slots to move or remove, keeping the sound
+  for(const o of stuck) log.stuck.push({d:o.d,from:o.k,to:o.h});
+  // 2. lift the slots to move or remove, remembering what each parameter sounds like now
   const lifted=[];
   for(const o of out){
     if(!o.drop&&!moves.includes(o)) continue;
-    bake(b,o.s,b[204+o.k*17]);
+    remember(MACRO_ADDR[o.d]);
     lifted.push({...o,st:b[o.s+1],en:b[o.s+2],dep:b[o.s+3]});
     b[o.s]=0;b[o.s+1]=0;b[o.s+2]=127;b[o.s+3]=64;
     if(o.drop&&mode==='fill') log.removed.push({d:o.d,from:o.k});
   }
-  // 3. stored positions to the standard (compensating the remaining slots)
-  for(let k=0;k<8;k++){
-    const a=204+k*17;if(b[a]===homes[k]) continue;
-    for(let r=0;r<4;r++){const s=slotAddr(k,r);if(b[s]) bake(b,s,b[a])}
-    if(mode==='fill') log.positions.push({k,from:b[a],to:homes[k]});
-    b[a]=homes[k];
-    for(let r=0;r<4;r++){const s=slotAddr(k,r);if(b[s]) unbake(b,s,homes[k])}
-  }
+  // 3. a knob left with no destinations has no effect, so its position can change freely:
+  //    give it the suggested starting position (64 for Cutoff, 0 for the others)
+  for(let k=0;k<8;k++) if(![0,1,2,3].some(r=>b[slotAddr(k,r)])) b[204+k*17]=sugg[k];
   // 4. put the slots on their home knob, start, end and depth unchanged
   for(const m of lifted.filter(x=>!x.drop)){
-    let r=0;while(b[slotAddr(m.h,r)]) r++;
+    let r=0;while(r<4&&b[slotAddr(m.h,r)]) r++;
+    if(r>=4) throw new Error('no free slot on knob '+(m.h+1));   // cannot happen: room was planned above
     const s=slotAddr(m.h,r);
     b[s]=m.d;b[s+1]=m.st;b[s+2]=m.en;b[s+3]=m.dep;
-    unbake(b,s,homes[m.h]);
+    adjustable.add(s);
     log.moved.push({d:m.d,from:m.k,to:m.h});
   }
   // 5. empty knobs → standard assignments
   for(let k=0;k<8;k++){
     if([0,1,2,3].some(r=>b[slotAddr(k,r)])) continue;
     STD[k].template(b).slice(0,4).forEach((t,r)=>{
-      const s=slotAddr(k,r),addr=MACRO_ADDR[t.d],p=PARAMS[String(addr)],base=b[addr];
+      const s=slotAddr(k,r),addr=MACRO_ADDR[t.d],p=PARAMS[String(addr)];
+      remember(addr);
+      const base=target[addr]??b[addr];
       const dir=t.dir==='auto'?((p.max-base)>=(base-p.min)?1:-1):t.dir==='mag'?(base>=64?1:-1):t.dir;
       b[s]=t.d;b[s+1]=0;b[s+2]=127;b[s+3]=Math.min(127,Math.max(0,64+dir*t.amt));
-      unbake(b,s,homes[k]);
+      adjustable.add(s);
     });
     log.filled.push(k);
   }
-  log.count=log.moved.length+log.removed.length+log.filled.length+log.positions.length;
+  // 6. recalculate the base value of every affected parameter so that it sounds as before.
+  //    If the base value would leave its range, shorten the effect of the slots placed in steps 4–5.
+  for(const key of Object.keys(target)){
+    const addr=+key,p=PARAMS[key],T=target[key];
+    const slots=[];let S=0;
+    for(let k=0;k<8;k++)for(let r=0;r<4;r++){const s=slotAddr(k,r);if(b[s]&&MACRO_ADDR[b[s]]===addr){const c=contrib(b,s,b[204+k*17]);S+=c;slots.push({s,k,c})}}
+    const nb=T-S;
+    if(nb>=p.min&&nb<=p.max){b[addr]=Math.round(nb);continue}
+    const lim=nb<p.min?p.min:p.max;
+    b[addr]=lim;
+    let D=(T-lim)-S;                        // change of total effect still needed
+    for(const x of slots.filter(x=>adjustable.has(x.s)&&Math.sign(x.c)===-Math.sign(D)).sort((u,v)=>Math.abs(v.c)-Math.abs(u.c))){
+      if(Math.abs(D)<0.5) break;
+      const want=Math.abs(D)>=Math.abs(x.c)?0:x.c+D;
+      const got=fitSlot(b,x.s,b[204+x.k*17],want);
+      D-=got-x.c;
+    }
+    if(Math.abs(Math.round(loadValue(b,addr))-Math.round(T))>1) log.approx.push({d:MACRO_DST.indexOf(MACRO_DST[MACRO_ADDR.indexOf(addr)]),k:-1,addr});
+  }
+  log.count=log.moved.length+log.removed.length+log.filled.length;
   return log;
 }
 function describeLog(l){
@@ -565,7 +593,7 @@ function describeLog(l){
   if(l.moved.length) parts.push('Moved: '+l.moved.map(m=>`${MACRO_DST[m.d]} ${m.from+1}→${m.to+1}`).join(', '));
   if(l.removed.length) parts.push('Removed: '+l.removed.map(m=>`${MACRO_DST[m.d]} (knob ${m.from+1})`).join(', '));
   if(l.filled.length) parts.push('Filled: knob '+l.filled.map(k=>k+1).join(', '));
-  if(l.positions.length) parts.push('Stored position reset: knob '+l.positions.map(p=>p.k+1).join(', '));
+  if(l.approx.length) parts.push('Sound may differ slightly: '+l.approx.map(m=>PARAMS[String(m.addr)].label).join(', '));
   if(l.stuck.length) parts.push('Not moved (knob full): '+l.stuck.map(m=>`${MACRO_DST[m.d]} → knob ${m.to+1}`).join(', '));
   return parts.join(' · ');
 }
