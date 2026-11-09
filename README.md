@@ -1,10 +1,10 @@
 # Knobwise
 
-**Patch editor and macro knob standard for the original Novation Circuit.**
+**Patch editor and macro knob maps for the original Novation Circuit.**
 
 **▶ Open Knobwise: https://ridepo.github.io/Knobwise/**
 
-On the original Circuit, every patch assigns the 8 macro knobs differently, so you never know what a knob will do until you turn it. Knobwise is a browser-based patch editor that also defines a **knob standard**: knob N always has the same function, in every patch, and clockwise always means “more”.
+On the original Circuit, every patch assigns the 8 macro knobs differently, so you never know what a knob will do until you turn it. Knobwise is a browser-based patch editor that also defines **knob maps**: with a map, knob N always has the same function in every patch, and clockwise always means “more”. You can choose between two maps.
 
 Knobwise is an independent project. It is not affiliated with, endorsed by or supported by Novation or Focusrite.
 
@@ -23,32 +23,33 @@ Safari does not support Web MIDI. Firefox needs MIDI permission for the site.
 - Opens and exports `.syx` files: single patches and banks of 64.
 - Backs up all 64 slots of the Circuit to a bank file, and sends a bank back.
 - Modulation matrix with a plain-language description of each slot.
-- Checks every patch against the knob standard, explains what is wrong, and converts patches automatically. Misplaced destinations are moved to their own knob, and the patch keeps sounding the same when loaded.
+- Checks every patch against the selected knob map, explains what is wrong, recognises which map a patch looks like, and converts patches automatically, also from one map to the other. Misplaced destinations are moved to their own knob, and the patch keeps sounding the same when loaded.
 - Undo/redo, unsaved-changes warnings, on-screen and computer keyboard, sections you can show or hide.
 
-## The knob standard
+## Knob maps
 
-| Knob | Name | Clockwise |
+| Knob | Signal Path | Tracks |
 |---|---|---|
-| 1 | Tone | soft to harsh |
-| 2 | Cutoff | brighter (opens the filter) |
-| 3 | Resonance | more resonance |
-| 4 | Env Mod | more filter envelope |
-| 5 | Attack | percussive to soft |
-| 6 | Length | short to long |
-| 7 | Drive | clean to saturated |
-| 8 | Motion | still to alive |
+| 1 | Tone | Oscillator |
+| 2 | Cutoff | Osc Mod |
+| 3 | Resonance | Amp Env |
+| 4 | Env Mod | Filter Env |
+| 5 | Attack | Filter Freq |
+| 6 | Length | Resonance |
+| 7 | Drive | Modulation |
+| 8 | Motion | FX |
 
-The standard fixes what each knob does and its direction; where each knob starts is up to the patch designer. Left to right, the knobs follow the signal path: oscillators → filter → amplifier → distortion, with the modulator last. Knobs 2, 3, 4 and 6 form the TB-303 block for acid and techno.
+- **Signal Path** is Knobwise's own map: left to right the knobs follow the signal path (oscillators → filter → amplifier → distortion, modulator last), and knobs 2, 3, 4 and 6 form the TB-303 block for acid and techno.
+- **Tracks** has the same eight functions as the macro knobs of the Circuit Tracks.
 
-The full rules, the destinations that belong to each knob and the hardware tests behind them are in [STANDARD.md](STANDARD.md).
+Use one map for the whole bank (the 64 synth patches on the Circuit). The full rules, the destinations that belong to each knob and the hardware tests behind them are in [KNOB-MAPS.md](KNOB-MAPS.md).
 
 ## Technical notes
 
 - MIDI channels: Synth 1 on channel 1, Synth 2 on channel 2.
 - Parameter numbers, value lists and the 340-byte SysEx patch format come from Novation's *Circuit Programmer's Reference Guide*.
 - The Circuit answers SysEx requests over USB only.
-- How the Circuit applies macro depth (depth ±64 = full parameter range, linear between start and end, no effect below start) is not documented by Novation. It was verified on a Circuit with listening tests, recorded in [STANDARD.md](STANDARD.md).
+- How the Circuit applies macro depth (depth ±64 = full parameter range, linear between start and end, no effect below start) is not documented by Novation. It was verified on a Circuit with listening tests, recorded in [KNOB-MAPS.md](KNOB-MAPS.md).
 
 ## Versions
 

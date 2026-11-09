@@ -1,6 +1,6 @@
 <!doctype html>
 <!--
-  Knobwise: patch editor and macro knob standard for the original Novation Circuit.
+  Knobwise: patch editor and macro knob maps for the original Novation Circuit.
   Copyright (C) 2026 ridepo — https://github.com/ridepo/knobwise
 
   This program is free software: you can redistribute it and/or modify it under the terms of the
@@ -15,7 +15,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Knobwise</title>
-<meta name="description" content="Knobwise: patch editor and macro knob standard for the original Novation Circuit">
+<meta name="description" content="Knobwise: patch editor and macro knob maps for the original Novation Circuit">
 <style>
 :root{
   --bg:#0c0d10; --panel:#15171c; --panel2:#1b1e24; --line:#262a32; --line2:#323743;
@@ -176,7 +176,7 @@ input[type=file]{display:none}
 .secbar button{background:transparent;border:1px solid var(--line2);border-radius:14px;padding:3px 11px;font-size:12px;color:var(--dim);cursor:pointer}
 .secbar button[aria-pressed=true]{color:var(--text);border-color:var(--acc);background:color-mix(in srgb,var(--acc) 14%,transparent)}
 .secbar button.all{border-style:dashed}
-/* standard */
+/* knob maps */
 .chip{display:inline-grid;place-items:center;min-width:22px;height:22px;padding:0 6px;border-radius:11px;font-size:12px;font-weight:700;background:var(--line2);color:var(--muted)}
 .chip.ok{background:color-mix(in srgb,var(--acc) 16%,transparent);color:var(--acc)}
 .chip.warn{background:rgba(255,182,72,.16);color:var(--warn)}
@@ -248,7 +248,7 @@ dialog.big{max-width:min(860px,calc(100% - 32px));width:100%}
       <select id="pgen" aria-label="Genre"></select>
       <span class="slot" id="slotLbl"></span>
       <span class="unsaved" id="unsavedLbl" hidden title="The patch has changed since it was last read, stored in a slot or exported">unsaved</span>
-      <button class="stdbtn" id="stdChip" title="Knob standard compliance"><span class="chip" id="stdChipDot">·</span><span id="stdChipTxt">Standard</span></button>
+      <button class="stdbtn" id="stdChip" title="Knob map compliance"><span class="chip" id="stdChipDot">·</span><span id="stdChipTxt">Knob map</span></button>
     </div>
     <div class="spacer"></div>
     <div class="grp">
@@ -279,7 +279,7 @@ dialog.big{max-width:min(860px,calc(100% - 32px));width:100%}
     <span class="slot">BANK</span>
     <select id="bankSel" aria-label="Bank patch"></select>
     <button class="btn" id="bBankPut" title="Copy the editor patch into the selected bank slot">Update bank slot</button>
-    <button class="btn" id="bBankStd">Check standard</button>
+    <button class="btn" id="bBankStd">Check map</button>
     <button class="btn" id="bBankExport">Export bank .syx</button>
     <button class="btn" id="bBankSend" title="Write all 64 slots to the Circuit memory">Send bank to Circuit</button>
     <button class="btn ghost" id="bBankClose">Close</button>
@@ -298,10 +298,14 @@ dialog.big{max-width:min(860px,calc(100% - 32px));width:100%}
   </section>
 
   <section class="panel wide" data-g="mac">
-    <div class="sechead"><h2>Macros</h2><span class="hint" id="stdSummary"></span><div class="spacer"></div>
-      <button class="btn" id="bStdInfo">The standard</button>
-      <button class="btn" id="bStdFill" title="Moves misplaced destinations to their knob, fills empty knobs, leaves the rest as it is">Complete to standard</button>
-      <button class="btn ghost" id="bStdAll" title="Rewrites all 8 knobs with the standard assignments">Rewrite all knobs</button>
+    <div class="sechead"><h2>Macros</h2>
+      <label class="port">Knob map <select id="mapSel" aria-label="Knob map"></select></label>
+      <span class="hint" id="stdSummary"></span>
+      <button class="stdbtn" id="mapHint" hidden></button>
+      <div class="spacer"></div>
+      <button class="btn" id="bStdInfo">Map details</button>
+      <button class="btn" id="bStdFill" title="Moves misplaced destinations to their knob, fills empty knobs, leaves the rest as it is">Complete to map</button>
+      <button class="btn ghost" id="bStdAll" title="Rewrites all 8 knobs with the map's default assignments">Rewrite all knobs</button>
     </div>
     <div class="macros" id="macros"></div>
   </section>
@@ -343,19 +347,20 @@ dialog.big{max-width:min(860px,calc(100% - 32px));width:100%}
 </dialog>
 
 <dialog id="stdDlg" class="big">
-  <h3>Knob standard</h3>
-  <p>Every patch assigns the 8 macro knobs to the same functions, so you know what each knob does whatever sound you load. Clockwise always gives “more”.</p>
+  <h3>Knob map</h3>
+  <p>A knob map gives each of the 8 macro knobs a fixed function, so you know what each knob does whatever sound you load. Clockwise always gives “more”.</p>
+  <p id="stdAbout"></p>
   <div class="dlgbody"><table class="stdtbl" id="stdTbl"></table>
   <ul class="rules" id="stdRules"></ul></div>
   <div class="row"><button class="btn pri" id="stdClose">Close</button></div>
 </dialog>
 
 <dialog id="bankStdDlg" class="big">
-  <h3>Bank standard check</h3>
+  <h3>Bank map check</h3>
   <p id="bankStdSum"></p>
   <div class="dlgbody"><table class="stdtbl" id="bankStdTbl"></table></div>
   <div class="row">
-    <button class="btn" id="bankStdFill">Complete the whole bank</button>
+    <button class="btn" id="bankStdFill">Complete the whole bank to this map</button>
     <button class="btn pri" id="bankStdClose">Close</button>
   </div>
 </dialog>
@@ -363,7 +368,7 @@ dialog.big{max-width:min(860px,calc(100% - 32px));width:100%}
 <script>
 'use strict';
 /* Editor version: change it here at every release. It is shown at the bottom of the page. */
-const APP_VERSION='0.2.0';
+const APP_VERSION='0.3.0';
 const APP_DATE='2026-11-09';
 /* =====================================================================
    Data from the "Circuit Programmer's Reference Guide" (Novation)
@@ -387,15 +392,18 @@ const MACRO_DST=['Off','Portamento','Post FX','Osc 1 interpolate','Osc 1 PW/inde
 const MACRO_ADDR=[null,33,59,37,38,39,40,41,42,43,46,47,48,49,50,51,52,54,55,56,57,64,66,61,65,68,70,71,72,73,75,76,77,78,79,80,81,82,83,89,90,86,97,98,94,100,102,119,121,122,123,...Array.from({length:20},(_,i)=>126+i*4)];
 
 /* =====================================================================
-   KNOB STANDARD
-   - knob n → always the same function (STD[n-1])
+   KNOB MAPS
+   A knob map gives each of the 8 macro knobs a fixed function.
+   - knob n → always the same function (MAP.knobs[n-1])
+   - every macro destination has exactly one home knob (Post FX level has none)
    - clockwise = "more"
    - stored position free: a loaded patch sounds as designed
    ===================================================================== */
 const MOD_DEPTHS=Array.from({length:20},(_,i)=>51+i);
+const slotAddr=(k,r)=>204+k*17+1+r*4;
 const isWT=w=>w>=14, hasPW=w=>(w>=3&&w<=12)||w>=14;
 const osc1On=b=>b[54]>0||b[56]>0, osc2On=b=>b[55]>0||b[56]>0;
-const STD=[
+const SIGNAL_PATH=[
   {name:'Tone',cw:'Soft to harsh: wavetable position, pulse width / index, sync',
    allowed:[3,10,4,11,5,12,6,13,7,14,8,15,9,16,17,18,19,20],rules:{},
    template:b=>{const t=[];
@@ -430,15 +438,69 @@ const STD=[
      for(let i=0;i<20;i++){const m=124+i*4; if(modUnset(b,i)&&b[m+2]===64){b[m]=7;b[m+1]=0;b[m+3]=12;return [{d:51+i,dir:1,amt:30}]}}
      return [{d:39,dir:1,amt:30}]}},
 ];
-const STD_RULES=[
+/* same eight functions as the Circuit Tracks; the destinations behind each function are Knobwise's choice */
+const TRACKS=[
+  {name:'Oscillator',cw:'Changes the oscillator sound: wavetable position, density, mix',
+   allowed:[3,10,6,13,8,15,9,16,17,18,19,20],rules:{},
+   template:b=>{const t=[];
+     if(osc1On(b)) t.push(isWT(b[36])?{d:3,dir:'auto',amt:40}:{d:6,dir:1,amt:40});
+     if(osc2On(b)) t.push(isWT(b[45])?{d:10,dir:'auto',amt:40}:{d:13,dir:1,amt:40});
+     return t.length?t:[{d:20,dir:1,amt:40}]}},
+  {name:'Osc Mod',cw:'More pulse width / index, sync and detune',
+   allowed:[4,11,5,12,7,14],rules:{},
+   template:b=>{const t=[];
+     if(osc1On(b)) t.push(hasPW(b[36])?{d:4,dir:'auto',amt:40}:{d:5,dir:1,amt:40});
+     if(osc2On(b)) t.push(hasPW(b[45])?{d:11,dir:'auto',amt:40}:{d:12,dir:1,amt:40});
+     return t.length?t:[{d:4,dir:'auto',amt:40}]}},
+  {name:'Amp Env',cw:'Slower and softer: longer amp attack and release',
+   allowed:[26,27,28,29],rules:{26:'+',27:'+',29:'+'},
+   template:()=>[{d:26,dir:1,amt:40},{d:29,dir:1,amt:40}]},
+  {name:'Filter Env',cw:'More filter envelope, longer filter decay',
+   allowed:[25,30,31,32,33],rules:{25:'mag'},
+   template:()=>[{d:25,dir:'mag',amt:32},{d:31,dir:1,amt:32}]},
+  {name:'Filter Freq',cw:'Brighter: opens the filter',pos:64,
+   allowed:[21,24],rules:{21:'+'},
+   template:()=>[{d:21,dir:1,amt:50}]},
+  {name:'Resonance',cw:'More resonance and filter drive',
+   allowed:[22,23],rules:{22:'+',23:'+'},
+   template:()=>[{d:22,dir:1,amt:50}]},
+  {name:'Modulation',cw:'More movement: modulation depths, LFO speed, envelope 3, glide',
+   allowed:[...MOD_DEPTHS,39,40,41,42,43,44,34,35,36,37,38,1],rules:{...Object.fromEntries(MOD_DEPTHS.map(d=>[d,'mag'])),39:'+',42:'+',1:'+'},
+   template:b=>SIGNAL_PATH[7].template(b)},
+  {name:'FX',cw:'More effect: distortion and chorus/phaser',
+   allowed:[45,46,47,48,49,50],rules:{45:'+',46:'+',47:'+',49:'+'},
+   template:()=>[{d:45,dir:1,amt:50},{d:46,dir:1,amt:50}]},
+];
+const COMMON_RULES=[
   'Knob N has the same function in every patch and only uses destinations of that function. Every destination has exactly one home knob.',
-  'Left to right, the knobs follow the signal path: oscillators → filter → amplifier → distortion. The last knob is the modulator, which acts on everything.',
-  'Clockwise always gives “more” of the function: harsher, brighter, more resonance, more envelope, slower, longer, dirtier, more motion.',
+  'Clockwise always gives “more” of the function.',
   'The stored position is free: the patch designer chooses where each knob starts. A freshly loaded patch always sounds as designed.',
-  'Resonance and filter envelope amount stay on two separate knobs, so they can be balanced against each other.',
   'All 8 knobs have at least one destination with an audible effect. No knob controls the Post FX level, so turning a knob never changes the patch volume.',
   'Every patch has its own name (not “Initial Patch”) and a category.',
+  'Use one map for the whole bank (the 64 synth patches on the Circuit): the Circuit cannot show which map a patch follows.',
 ];
+const MAPS={
+  signal:{id:'signal',name:'Signal Path',knobs:SIGNAL_PATH,about:'Knobwise’s own map, made for acid and techno and usable for any sound.',
+    rules:['Left to right, the knobs follow the signal path: oscillators → filter → amplifier → distortion. The last knob is the modulator, which acts on everything.',
+           'Cutoff, Resonance, Env Mod and Length are the TB-303 block. Resonance and filter envelope amount are on separate knobs, so they can be balanced against each other.']},
+  tracks:{id:'tracks',name:'Tracks',knobs:TRACKS,about:'The same eight functions as the macro knobs of the Circuit Tracks, for people who move between the two.',
+    rules:['Knob functions as on the Circuit Tracks: Oscillator, Osc Mod, Amp Env, Filter Env, Filter Freq, Resonance, Modulation, FX. Which destinations sit behind each function is Knobwise’s choice.']},
+};
+for(const M of Object.values(MAPS)) M.home=MACRO_DST.map((_,d)=>{const k=M.knobs.findIndex(S=>S.allowed.includes(d));return k<0?null:k});
+let MAP=MAPS.signal;
+try{const m=localStorage.getItem('knobwise:map');if(MAPS[m]) MAP=MAPS[m]}catch(e){}
+/* which map a patch resembles: share of its macro destinations that sit on their home knob */
+function mapScores(b){
+  const out={};let n=0;
+  for(let k=0;k<8;k++)for(let r=0;r<4;r++) if(b[slotAddr(k,r)]) n++;
+  for(const M of Object.values(MAPS)){let ok=0;for(let k=0;k<8;k++)for(let r=0;r<4;r++){const d=b[slotAddr(k,r)];if(d&&M.home[d]===k) ok++}out[M.id]=n?ok/n:null}
+  return out;
+}
+function bestMap(b){
+  const sc=mapScores(b);let best=null;
+  for(const id in sc) if(sc[id]!=null&&(!best||sc[id]>sc[best])) best=id;
+  return best&&sc[best]>0?MAPS[best]:null;
+}
 function modUnset(b,i){const m=124+i*4;return b[m]===0&&b[m+1]===0&&b[m+3]===0}
 function nameOf(b){let s='';for(let i=0;i<16;i++){const c=b[i];s+=c>=32&&c<127?String.fromCharCode(c):' '}return s.trim()}
 /* effect (in parameter steps) of a macro slot with the knob at position P.
@@ -450,17 +512,18 @@ function contrib(b,s,P){
   const f=en>st?Math.min(1,Math.max(0,(P-st)/(en-st))):(P>=st?1:0);
   return dep/64*(p.max-p.min)*f;
 }
-function checkPatch(b){
+function checkPatch(b,M=MAP){
+  const K=M.knobs,HOME=M.home;
   const knobs=[];let errs=0,warns=0;
   for(let k=0;k<8;k++){
-    const a=204+k*17,S=STD[k],msgs=[];let level='ok';
+    const a=204+k*17,S=K[k],msgs=[];let level='ok';
     const add=(l,text)=>{msgs.push({level:l,text});if(l==='err')level='err';else if(level!=='err')level='warn'};
     const slots=[0,1,2,3].map(r=>a+1+r*4).filter(s=>b[s]!==0);
     if(!slots.length) add('err','No destination assigned');
     for(const s of slots){
       const d=b[s],nm=MACRO_DST[d]??`#${d}`,sl='ABCD'[(s-a-1)/4];
-      if(!S.allowed.includes(d)){const h=DEST_HOME[d];
-        add('err',h==null?`${sl}: “${nm}” is not allowed on any knob (it changes the volume)`:`${sl}: “${nm}” belongs to knob ${h+1} ${STD[h].name}`);continue}
+      if(!S.allowed.includes(d)){const h=HOME[d];
+        add('err',h==null?`${sl}: “${nm}” is not allowed on any knob (it changes the volume)`:`${sl}: “${nm}” belongs to knob ${h+1} ${K[h].name}`);continue}
       const dep=b[s+3]-64;
       if(dep===0){add('warn',`${sl}: depth 0, no effect`);continue}
       if(b[s+1]>=b[s+2]) add('warn',`${sl}: start ≥ end`);
@@ -480,8 +543,6 @@ function checkPatch(b){
   return {knobs,meta,errs,warns,ok:!errs&&!warns&&!meta.length};
 }
 /* home knob of each macro destination (null = allowed on no knob: Post FX level) */
-const DEST_HOME=MACRO_DST.map((_,d)=>{const k=STD.findIndex(S=>S.allowed.includes(d));return k<0?null:k});
-const slotAddr=(k,r)=>204+k*17+1+r*4;
 /* value of a parameter heard when the patch loads: base value plus the effect of every macro slot
    on it, each at its knob's stored position, clamped to the parameter range */
 function loadValue(b,addr){
@@ -503,18 +564,19 @@ function fitSlot(b,s,H,want){
 }
 /* mode 'fill': move misplaced destinations to their home knob, remove only Post FX
                 and fill empty knobs. Stored positions are left as they are.
-   mode 'all' : rewrite every knob with the standard assignments.
+   mode 'all' : rewrite every knob with the map's default assignments.
    Moved slots keep start, end and depth; the parameter base values are then recalculated
    so that the patch sounds the same when loaded. Returns what was done. */
-function applyStandard(b,mode='fill'){
-  const sugg=STD.map(S=>S.pos??0), log={moved:[],removed:[],stuck:[],filled:[],approx:[]};
+function applyStandard(b,mode='fill',M=MAP){
+  const K=M.knobs,HOME=M.home;
+  const sugg=K.map(S=>S.pos??0), log={moved:[],removed:[],stuck:[],filled:[],approx:[]};
   const target={}, adjustable=new Set();
   const remember=addr=>{const p=PARAMS[String(addr)];if(p&&!p.options&&!(addr in target)) target[addr]=loadValue(b,addr)};
   // 1. plan: which slots stay, which move
   const stay=[0,0,0,0,0,0,0,0], out=[];
   for(let k=0;k<8;k++) for(let r=0;r<4;r++){
     const s=slotAddr(k,r),d=b[s];if(!d) continue;
-    const h=mode==='all'?-1:DEST_HOME[d];
+    const h=mode==='all'?-1:HOME[d];
     if(h===k) stay[k]++; else out.push({k,r,s,d,h});
   }
   for(const o of out) if(o.h==null||o.h===-1) o.drop=true;
@@ -552,10 +614,10 @@ function applyStandard(b,mode='fill'){
     adjustable.add(s);
     log.moved.push({d:m.d,from:m.k,to:m.h});
   }
-  // 5. empty knobs → standard assignments
+  // 5. empty knobs → the map's default assignments
   for(let k=0;k<8;k++){
     if([0,1,2,3].some(r=>b[slotAddr(k,r)])) continue;
-    STD[k].template(b).slice(0,4).forEach((t,r)=>{
+    K[k].template(b).slice(0,4).forEach((t,r)=>{
       const s=slotAddr(k,r),addr=MACRO_ADDR[t.d],p=PARAMS[String(addr)];
       remember(addr);
       const base=target[addr]??b[addr];
@@ -588,7 +650,6 @@ function applyStandard(b,mode='fill'){
   return log;
 }
 function describeLog(l){
-  const n=k=>`${k+1} ${STD[k].name}`;
   const parts=[];
   if(l.moved.length) parts.push('Moved: '+l.moved.map(m=>`${MACRO_DST[m.d]} ${m.from+1}→${m.to+1}`).join(', '));
   if(l.removed.length) parts.push('Removed: '+l.removed.map(m=>`${MACRO_DST[m.d]} (knob ${m.from+1})`).join(', '));
@@ -1083,22 +1144,33 @@ function buildModMatrix(){
   }
 }
 const stdViews=[];
-function macroDestSelect(id,k,label){
-  const p=PARAMS[id],S=STD[k];
-  const sel=el('select',{'aria-label':label});
-  sel.append(new Option(MACRO_DST[0],0));
-  const g1=el('optgroup',{label:`Standard · ${S.name}`}),g2=el('optgroup',{label:'Outside the standard'});
+const macroRefs=[];
+function fillDestOptions(sel,k){
+  const S=MAP.knobs[k];
+  const g1=el('optgroup',{label:`${MAP.name} · ${S.name}`}),g2=el('optgroup',{label:'Other knobs in this map'});
   S.allowed.forEach(d=>g1.append(new Option(MACRO_DST[d],d)));
   for(let d=1;d<MACRO_DST.length;d++) if(!S.allowed.includes(d)) g2.append(new Option(MACRO_DST[d],d));
-  sel.append(g1,g2);
+  sel.replaceChildren(new Option(MACRO_DST[0],0),g1,g2);
+}
+function macroDestSelect(id,k,label){
+  const p=PARAMS[id];
+  const sel=el('select',{'aria-label':label});
+  fillDestOptions(sel,k);
   sel.addEventListener('change',()=>setValue(p,+sel.value));
   view(p.id,()=>{sel.value=p.get()});sel.value=p.get();
   return sel;
 }
+/* show the names and destination menus of the selected map */
+function relabelMacros(){
+  macroRefs.forEach((m,k)=>{
+    const S=MAP.knobs[k];m.title.textContent=S.name;m.cw.textContent=S.cw;
+    m.selects.forEach((sel,r)=>{fillDestOptions(sel,k);sel.value=patch[slotAddr(k,r)]});
+  });
+}
 function buildMacros(){
   const root=$('#macros');
   for(let k=0;k<8;k++){
-    const a=204+k*17,S=STD[k];
+    const a=204+k*17,S=MAP.knobs[k];
     const pos=knob(String(a),{sm:true,label:false});
     pos.querySelector('.dial').setAttribute('aria-label',`Macro ${k+1} position`);
     const chip=el('span',{class:'chip'}),msgs=el('ul',{class:'msgs'});
@@ -1106,9 +1178,10 @@ function buildMacros(){
       el('div',{class:'mh'},el('span',{class:'kn'},String(k+1)),el('div',{class:'mt'},el('b',{},S.name),el('small',{},S.cw)),chip,pos),
       msgs,
       el('div',{class:'legend'},el('span'),el('span',{},'Destination'),el('span',{},'Start'),el('span',{},'End'),el('span',{},'Depth')));
+    const ref={title:card.querySelector('.mt b'),cw:card.querySelector('.mt small'),selects:[]};macroRefs.push(ref);
     for(let r=0;r<4;r++){
       const s=a+1+r*4;
-      const dst=macroDestSelect(String(s),k,`Macro ${k+1} slot ${'ABCD'[r]} destination`);
+      const dst=macroDestSelect(String(s),k,`Macro ${k+1} slot ${'ABCD'[r]} destination`);ref.selects.push(dst);
       const ks=[1,2,3].map(o=>{const kk=knob(String(s+o),{sm:true,label:false});kk.querySelector('.dial').setAttribute('aria-label',`Macro ${k+1} ${'ABCD'[r]} ${PARAMS[String(s+o)].label}`);return kk});
       const row=el('div',{class:'mslot'},el('span',{class:'n'},'ABCD'[r]),dst,...ks);
       watch([s],()=>row.classList.toggle('on',patch[s]!==0));
@@ -1118,7 +1191,7 @@ function buildMacros(){
       const r=res.knobs[k];
       card.dataset.level=r.level;
       chip.className='chip '+r.level;chip.textContent=r.level==='ok'?'✓':r.level==='warn'?'!':'✕';
-      chip.title=r.level==='ok'?'Follows the standard':r.msgs.map(m=>m.text).join('\n');
+      chip.title=r.level==='ok'?`Follows the ${MAP.name} map`:r.msgs.map(m=>m.text).join('\n');
       msgs.replaceChildren(...r.msgs.map(m=>el('li',{class:m.level},m.text)));
     });
     root.append(card);
@@ -1135,22 +1208,27 @@ function updateStandard(){
   const lvl=res.errs?'err':(res.warns||res.meta.length)?'warn':'ok';
   $('#stdChipDot').className='chip '+lvl;$('#stdChipDot').textContent=lvl==='ok'?'✓':lvl==='warn'?'!':'✕';
   const miss=[!nameOf(patch)||nameOf(patch)===DEFAULT_NAME?'name':'',patch[16]===0?'category':''].filter(Boolean);
-  $('#stdChipTxt').textContent=res.ok?'Follows the standard':`Standard: `+[n?`${n} knob${n>1?'s':''} to fix`:'',miss.length?`missing ${miss.join(' and ')}`:''].filter(Boolean).join(' · ');
-  $('#stdSummary').textContent=res.ok?'Follows the standard':`${8-n}/8 knobs follow the standard`+(res.meta.length?' · '+res.meta.join(' · '):'');
+  $('#stdChipTxt').textContent=res.ok?`Follows ${MAP.name}`:`${MAP.name}: `+[n?`${n} knob${n>1?'s':''} to fix`:'',miss.length?`missing ${miss.join(' and ')}`:''].filter(Boolean).join(' · ');
+  $('#stdSummary').textContent=res.ok?`Follows the ${MAP.name} map`:`${8-n}/8 knobs follow the map`+(res.meta.length?' · '+res.meta.join(' · '):'');
+  const bm=bestMap(patch),hint=$('#mapHint');
+  if(bm&&bm!==MAP&&mapScores(patch)[bm.id]>mapScores(patch)[MAP.id]){hint.hidden=false;hint.textContent=`This patch looks like ${bm.name} — switch map`;hint.dataset.map=bm.id}
+  else hint.hidden=true;
 }
 function applyToCurrent(mode){
   const b=patch.slice(),log=applyStandard(b,mode);
-  if(eq(b,patch)){toast(log.stuck.length?describeLog(log):'The knobs already follow the standard',log.stuck.length?'err':'ok');return}
+  if(eq(b,patch)){toast(log.stuck.length?describeLog(log):`The knobs already follow the ${MAP.name} map`,log.stuck.length?'err':'ok');return}
   loadPatch(b,{saved:false});
   if(!sendPatch(true)) needsSysex(true);
   toast((mode==='all'?'All knobs rewritten':describeLog(log))+' · Ctrl+Z to undo','ok',7000);
 }
 function showStdDialog(){
   const t=$('#stdTbl');
+  $('#stdDlg h3').textContent=`Knob map: ${MAP.name}`;
+  $('#stdAbout').textContent=MAP.about;
   t.replaceChildren(el('tr',{},el('th',{},'Knob'),el('th',{},'Function'),el('th',{},'Clockwise'),el('th',{},'Allowed destinations')),
-    ...STD.map((S,k)=>el('tr',{},el('td',{class:'k'},String(k+1)),el('td',{},el('b',{},S.name)),el('td',{},S.cw),
+    ...MAP.knobs.map((S,k)=>el('tr',{},el('td',{class:'k'},String(k+1)),el('td',{},el('b',{},S.name)),el('td',{},S.cw),
       el('td',{style:'color:var(--muted)'},S.allowed.filter(d=>d<51).map(d=>MACRO_DST[d]).concat(S.allowed.some(d=>d>=51)?['Matrix slot 1–20 depth']:[]).join(', ')))));
-  $('#stdRules').replaceChildren(...STD_RULES.map(r=>el('li',{},r)));
+  $('#stdRules').replaceChildren(...MAP.rules.concat(COMMON_RULES).map(r=>el('li',{},r)));
   $('#stdDlg').showModal();
 }
 function showBankStd(){
@@ -1159,14 +1237,16 @@ function showBankStd(){
   bank.forEach((d,i)=>{
     if(!d) return;n++;
     const r=checkPatch(d);if(!r.errs&&!r.warns) ok++;if(r.meta.length) meta++;
+    const bm=bestMap(d);
     const tr=el('tr',{class:'pick',title:'Open in the editor'},el('td',{class:'k'},String(i+1).padStart(2,'0')),el('td',{},slotName(d)),
-      el('td',{},el('div',{class:'dots'},...r.knobs.map((x,k)=>el('i',{class:x.level,title:`Knob ${k+1} ${STD[k].name}: ${x.level==='ok'?'OK':x.msgs.map(m=>m.text).join('; ')}`})))),
+      el('td',{},el('div',{class:'dots'},...r.knobs.map((x,k)=>el('i',{class:x.level,title:`Knob ${k+1} ${MAP.knobs[k].name}: ${x.level==='ok'?'OK':x.msgs.map(m=>m.text).join('; ')}`})))),
+      el('td',{style:'color:var(--muted)'},bm?bm.name:'—'),
       el('td',{style:'color:var(--muted)'},r.ok?'✓':[r.errs?`${r.errs} error${r.errs>1?'s':''}`:'',r.warns?`${r.warns} warning${r.warns>1?'s':''}`:'',...r.meta].filter(Boolean).join(' · ')));
     tr.onclick=()=>{$('#bankStdDlg').close();bankPick(i)};
     rows.push(tr);
   });
-  $('#bankStdSum').textContent=`Knobs follow the standard in ${ok} of ${n} patches`+(meta?` · ${meta} patches without their own name or a category`:'')+'. Click a row to open it; the squares are knobs 1–8.';
-  $('#bankStdTbl').replaceChildren(el('tr',{},el('th',{},'Slot'),el('th',{},'Name'),el('th',{},'Knobs 1–8'),el('th',{},'Status')),...rows);
+  $('#bankStdSum').textContent=`Map ${MAP.name}: knobs follow the map in ${ok} of ${n} patches`+(meta?` · ${meta} patches without their own name or a category`:'')+'. Click a row to open it; the squares are knobs 1–8.';
+  $('#bankStdTbl').replaceChildren(el('tr',{},el('th',{},'Slot'),el('th',{},'Name'),el('th',{},'Knobs 1–8'),el('th',{},'Looks like'),el('th',{},'Status')),...rows);
   if(!$('#bankStdDlg').open) $('#bankStdDlg').showModal();
 }
 
@@ -1495,6 +1575,12 @@ function init(){
   $('#bBankSend').onclick=bankSend;
   $('#bBankClose').onclick=()=>{bank=null;$('#bankBar').classList.remove('show');updateButtons()};
   $('#bStdInfo').onclick=showStdDialog;
+  for(const M of Object.values(MAPS)) $('#mapSel').append(new Option(M.name,M.id));
+  $('#mapSel').value=MAP.id;
+  const setMap=id=>{MAP=MAPS[id]||MAPS.signal;$('#mapSel').value=MAP.id;try{localStorage.setItem('knobwise:map',MAP.id)}catch(e){}
+    relabelMacros();scheduleStd();if($('#bankStdDlg').open) showBankStd()};
+  $('#mapSel').onchange=e=>setMap(e.target.value);
+  $('#mapHint').onclick=e=>setMap(e.currentTarget.dataset.map);
   $('#stdClose').onclick=()=>$('#stdDlg').close();
   $('#stdChip').onclick=()=>{showGroup('mac');$('#macros').closest('section').scrollIntoView({behavior:'smooth',block:'start'})};
   $('#bStdFill').onclick=()=>applyToCurrent('fill');
@@ -1504,7 +1590,7 @@ function init(){
   $('#bankStdFill').onclick=()=>{
     let c=0;bank.forEach(d=>{if(!d) return;const before=d.slice();applyStandard(d,'fill');if(!eq(before,d))c++});
     setBank(bank);showBankStd();
-    toast(c?`Standard applied to ${c} bank patches. Export or send the bank to keep it.`:'The bank already follows the standard','ok');
+    toast(c?`${MAP.name} map applied to ${c} bank patches. Export or send the bank to keep it.`:`The bank already follows the ${MAP.name} map`,'ok');
   };
   $('#bUndo').onclick=()=>undo(-1);$('#bRedo').onclick=()=>undo(1);
   $('#bMutate').onclick=mutate;

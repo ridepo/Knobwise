@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.0 — 2026-11-09
+- The knob standard becomes **knob maps**, with two maps to choose from: **Signal Path** (Knobwise's own map) and **Tracks** (the same eight functions as the Circuit Tracks).
+- Map selector in the Macros section; the editor remembers the choice.
+- The editor recognises which map a patch looks like and offers to switch. The bank check shows it for every patch.
+- “Complete to map” also converts a patch from one map to the other, keeping the loaded sound.
+- STANDARD.md is now KNOB-MAPS.md.
+
 ## 0.2.0 — 2026-11-09
 - Knob standard: the stored knob position is now free. The standard fixes only each knob's function and direction; the patch designer chooses where each knob starts.
 - The checker no longer warns about stored positions, and “Complete to standard” no longer changes them. A knob that was empty still gets a suggested starting position (64 for Cutoff, 0 for the others).
