@@ -1,0 +1,1519 @@
+<!doctype html>
+<!--
+  Knobwise: patch editor and macro knob standard for the original Novation Circuit.
+  Copyright (C) 2026 ridepo — https://github.com/ridepo/knobwise
+
+  This program is free software: you can redistribute it and/or modify it under the terms of the
+  GNU General Public License as published by the Free Software Foundation, either version 3 of the
+  License, or (at your option) any later version. It is distributed WITHOUT ANY WARRANTY; see the
+  LICENSE file or <https://www.gnu.org/licenses/>.
+
+  Not affiliated with Novation or Focusrite.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Knobwise</title>
+<meta name="description" content="Knobwise: patch editor and macro knob standard for the original Novation Circuit">
+<style>
+:root{
+  --bg:#0c0d10; --panel:#15171c; --panel2:#1b1e24; --line:#262a32; --line2:#323743;
+  --text:#e8eaf0; --muted:#8b91a1; --dim:#5b6070;
+  --s1:#b273ff; --s2:#2fd07a; --acc:var(--s1);
+  --warn:#ffb648; --err:#ff5d6c;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --kb-h:118px;
+}
+body.synth2{--acc:var(--s2)}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0;background:var(--bg);color:var(--text);font:14px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+button,select,input{font:inherit;color:inherit}
+body{padding-bottom:calc(var(--kb-h) + 16px)}
+body.kb-collapsed{padding-bottom:56px}
+
+/* ---------- top bar ---------- */
+.top{position:sticky;top:0;z-index:20;background:rgba(12,13,16,.94);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.bar{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;padding:10px 16px;max-width:1500px;margin:0 auto}
+.brand{display:flex;align-items:center;gap:10px;font-weight:650;letter-spacing:.02em;margin-right:6px}
+.logo{width:26px;height:26px;display:grid;grid-template-columns:repeat(3,1fr);gap:2px}
+.logo i{border-radius:2px;background:var(--line2)}
+.logo i:nth-child(1),.logo i:nth-child(5),.logo i:nth-child(9){background:var(--acc)}
+.brand small{display:block;font-weight:400;color:var(--muted);font-size:11px;letter-spacing:.06em;text-transform:uppercase}
+.midi{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--dim);flex:none}
+.dot.ok{background:var(--acc);box-shadow:0 0 8px var(--acc)}
+.dot.warn{background:var(--warn)}
+.dot.err{background:var(--err)}
+.midi .st{color:var(--muted);font-size:13px;min-width:0}
+.midi .act{animation:blink .15s}
+@keyframes blink{from{background:#fff}}
+label.port{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:12px}
+select{background:var(--panel2);border:1px solid var(--line2);border-radius:7px;padding:5px 8px;max-width:100%;min-width:0}
+select:focus-visible,input:focus-visible,button:focus-visible,.dial:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.seg{display:inline-flex;border:1px solid var(--line2);border-radius:8px;overflow:hidden}
+.seg button{background:transparent;border:0;padding:6px 12px;cursor:pointer;color:var(--muted)}
+.seg button[aria-pressed=true]{background:var(--acc);color:#0b0b0e;font-weight:650}
+.spacer{flex:1}
+.btn{background:var(--panel2);border:1px solid var(--line2);border-radius:8px;padding:6px 12px;cursor:pointer;white-space:nowrap;position:relative}
+.btn:hover{border-color:var(--muted)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn.pri{background:var(--acc);border-color:var(--acc);color:#0b0b0e;font-weight:650}
+.btn.pending::after{content:"";position:absolute;top:-3px;right:-3px;width:9px;height:9px;border-radius:50%;background:var(--warn);border:2px solid var(--bg)}
+.btn.ghost{background:transparent}
+.grp{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.sep{width:1px;height:24px;background:var(--line2)}
+.bar2{border-top:1px solid var(--line);padding-top:8px;padding-bottom:10px}
+.name{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.name input{background:#08090b;border:1px solid var(--line2);border-radius:7px;padding:6px 10px;font-family:var(--mono);font-size:15px;letter-spacing:.06em;width:19ch;color:var(--acc)}
+.slot{font-family:var(--mono);color:var(--muted);font-size:12px}
+
+/* ---------- panels ---------- */
+main{max-width:1500px;margin:0 auto;padding:16px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 12px 14px;min-width:0}
+.panel h2{margin:0 0 10px;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);display:flex;align-items:center;gap:8px;font-weight:600}
+.panel h2::before{content:"";width:3px;height:12px;border-radius:2px;background:var(--acc)}
+.sels{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;margin-bottom:10px}
+.sel{display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--muted);min-width:0}
+.sel select{width:100%}
+.knobs{display:grid;grid-template-columns:repeat(auto-fill,minmax(66px,1fr));gap:8px 4px}
+.toggles{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.tog{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);border:1px solid var(--line2);border-radius:20px;padding:4px 10px;cursor:pointer;user-select:none}
+.tog input{appearance:none;width:8px;height:8px;border-radius:50%;background:var(--dim);margin:0}
+.tog:has(input:checked){color:var(--text);border-color:var(--acc)}
+.tog input:checked{background:var(--acc);box-shadow:0 0 6px var(--acc)}
+.tog:has(input:focus-visible){outline:2px solid var(--acc);outline-offset:2px}
+
+/* knob */
+.knob{display:flex;flex-direction:column;align-items:center;gap:1px;min-width:0;transition:opacity .15s}
+.knob.inactive{opacity:.35}
+.dial{width:48px;height:48px;cursor:ns-resize;touch-action:none;border-radius:50%}
+.knob.sm .dial{width:34px;height:34px}
+.dial svg{width:100%;height:100%;display:block;overflow:visible}
+.dial .trk{fill:none;stroke:var(--line2);stroke-width:4.5;stroke-linecap:round}
+.dial .val{fill:none;stroke:var(--acc);stroke-width:4.5;stroke-linecap:round}
+.dial .cap{fill:var(--panel2);stroke:var(--line2)}
+.dial .ptr{stroke:var(--text);stroke-width:3;stroke-linecap:round}
+.dial:hover .cap{stroke:var(--muted)}
+.kv{font-family:var(--mono);font-size:11px;color:var(--text);min-height:15px;white-space:nowrap}
+.kl{font-size:11px;color:var(--muted);text-align:center;line-height:1.2;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* envelope */
+.envsvg{width:100%;height:54px;display:block;margin:0 0 10px;background:#0e1014;border-radius:8px;border:1px solid var(--line)}
+.envsvg .ln{fill:none;stroke:var(--acc);stroke-width:2;vector-effect:non-scaling-stroke;stroke-linejoin:round}
+.envsvg .fl{fill:var(--acc);opacity:.12}
+
+/* sections */
+.wide{margin-top:12px}
+.sechead{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.sechead h2{margin:0}
+.sechead .hint{font-size:12px;color:var(--dim)}
+.mm{display:grid;grid-template-columns:1fr;gap:2px}
+.mrow,.mhead{display:grid;grid-template-columns:24px minmax(0,170px) minmax(0,170px) 46px minmax(0,200px) minmax(0,1fr);gap:8px;align-items:center;padding:3px 6px;border-radius:8px}
+.mhead{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;padding-bottom:4px;border-bottom:1px solid var(--line);margin-bottom:2px}
+.mhead span:nth-child(4){text-align:center}
+.mrow{opacity:.55;transition:opacity .15s}
+.mrow.set{opacity:.8}
+.mrow.on{opacity:1;background:var(--panel2)}
+.mrow .txt{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.mrow.on .txt{color:var(--text)}
+.mrow .mk{color:var(--acc)}
+.mrow .n{font-family:var(--mono);font-size:11px;color:var(--dim)}
+.mrow.on .n{color:var(--acc)}
+.mrow .knob .kv{font-size:10px;min-height:12px}
+.macros{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:10px}
+.mac{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px}
+.mac .mh{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.mac .mh b{font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);flex:1}
+.mslot{display:grid;grid-template-columns:16px minmax(0,1fr) repeat(3,38px);gap:4px;align-items:center;padding:3px 0;border-top:1px solid var(--line);opacity:.5}
+.mslot.on{opacity:1}
+.mslot .n{font-family:var(--mono);font-size:11px;color:var(--dim)}
+.mslot .knob .kv{font-size:9.5px;min-height:11px}
+.mslot .knob .kl{font-size:9.5px}
+.mslot select{font-size:12px;padding:4px 6px}
+.legend{font-size:11px;color:var(--dim);display:grid;grid-template-columns:16px minmax(0,1fr) repeat(3,38px);gap:4px;text-align:center}
+.legend span:nth-child(2){text-align:left}
+
+/* keyboard */
+.kb{position:fixed;left:0;right:0;bottom:0;z-index:15;background:rgba(12,13,16,.97);border-top:1px solid var(--line);backdrop-filter:blur(8px)}
+.kbbar{display:flex;align-items:center;gap:8px;padding:6px 16px;max-width:1500px;margin:0 auto;flex-wrap:wrap}
+.kbbar .lbl{font-size:12px;color:var(--muted)}
+.keys{position:relative;height:72px;margin:0 auto 8px;max-width:1500px;padding:0 16px}
+.keys .inner{position:relative;height:100%}
+.kw,.kbk{position:absolute;top:0;border-radius:0 0 5px 5px;cursor:pointer;touch-action:none}
+.kw{height:100%;background:#d9dce3;border:1px solid #0c0d10}
+.kw.on{background:var(--acc)}
+.kbk{height:60%;background:#1d2027;border:1px solid #000;z-index:2}
+.kbk.on{background:var(--acc)}
+.kw span{position:absolute;bottom:4px;left:0;right:0;text-align:center;font-size:10px;color:#555b68;font-family:var(--mono)}
+body.kb-collapsed .keys{display:none}
+
+/* misc */
+.toast{position:fixed;left:50%;bottom:calc(var(--kb-h) + 24px);transform:translateX(-50%);background:#22262e;border:1px solid var(--line2);border-radius:10px;padding:9px 14px;z-index:40;max-width:calc(100% - 32px);box-shadow:0 8px 30px rgba(0,0,0,.5);font-size:13px;opacity:0;pointer-events:none;transition:opacity .2s}
+.toast.show{opacity:1}
+.toast.err{border-color:var(--err)}
+.toast.ok{border-color:var(--acc)}
+dialog{background:var(--panel);color:var(--text);border:1px solid var(--line2);border-radius:12px;padding:18px;max-width:min(420px,calc(100% - 32px))}
+dialog::backdrop{background:rgba(0,0,0,.6)}
+dialog h3{margin:0 0 8px;font-size:16px}
+dialog p{color:var(--muted);margin:0 0 12px;font-size:13px}
+dialog .row{display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;margin-top:14px}
+dialog select{width:100%}
+.banner{max-width:1500px;margin:12px auto 0;padding:0 16px}
+.banner div{background:#2a2112;border:1px solid #5a4319;color:#f3d7a4;border-radius:10px;padding:10px 14px;font-size:13px}
+.bank{display:none}
+.bank.show{display:flex}
+input[type=file]{display:none}
+.foot{margin:16px 0 0;padding:10px 0 4px;border-top:1px solid var(--line);color:var(--dim);font-size:12px;text-align:center}
+.unsaved{font-size:12px;color:var(--warn);display:inline-flex;align-items:center;gap:5px}
+.unsaved::before{content:"";width:7px;height:7px;border-radius:50%;background:var(--warn)}
+.notice{background:#2a2112;border-top:1px solid #5a4319}
+.notice .txt{color:#f3d7a4;font-size:13px;flex:1 1 320px;min-width:0}
+.secbar{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin:0 0 12px}
+.secbar .lbl{font-size:12px;color:var(--muted);margin-right:4px}
+.secbar button{background:transparent;border:1px solid var(--line2);border-radius:14px;padding:3px 11px;font-size:12px;color:var(--dim);cursor:pointer}
+.secbar button[aria-pressed=true]{color:var(--text);border-color:var(--acc);background:color-mix(in srgb,var(--acc) 14%,transparent)}
+.secbar button.all{border-style:dashed}
+/* standard */
+.chip{display:inline-grid;place-items:center;min-width:22px;height:22px;padding:0 6px;border-radius:11px;font-size:12px;font-weight:700;background:var(--line2);color:var(--muted)}
+.chip.ok{background:color-mix(in srgb,var(--acc) 16%,transparent);color:var(--acc)}
+.chip.warn{background:rgba(255,182,72,.16);color:var(--warn)}
+.chip.err{background:rgba(255,93,108,.16);color:var(--err)}
+.stdbtn{display:inline-flex;align-items:center;gap:6px;background:transparent;border:1px solid var(--line2);border-radius:14px;padding:3px 10px 3px 4px;cursor:pointer;font-size:12px;color:var(--muted)}
+.stdbtn:hover{border-color:var(--muted)}
+.mac .kn{width:22px;height:22px;border-radius:6px;background:var(--acc);color:#0b0b0e;display:grid;place-items:center;font-weight:750;font-size:12px;flex:none}
+.mac .mt{flex:1;min-width:0;display:flex;flex-direction:column}
+.mac .mt b{font-size:13px;letter-spacing:.02em;text-transform:none;color:var(--text)}
+.mac .mt small{font-size:11px;color:var(--muted);line-height:1.25}
+.mac[data-level=err]{border-color:rgba(255,93,108,.45)}
+.mac[data-level=warn]{border-color:rgba(255,182,72,.35)}
+.msgs{list-style:none;margin:0 0 6px;padding:0;font-size:11.5px;line-height:1.35}
+.msgs li{padding:2px 0 2px 14px;position:relative}
+.msgs li::before{content:"";position:absolute;left:2px;top:7px;width:6px;height:6px;border-radius:50%}
+.msgs li.err{color:#ffb3ba}.msgs li.err::before{background:var(--err)}
+.msgs li.warn{color:#f3d7a4}.msgs li.warn::before{background:var(--warn)}
+.stdtbl{width:100%;border-collapse:collapse;font-size:12.5px}
+.stdtbl th,.stdtbl td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+.stdtbl th{color:var(--muted);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.06em}
+.stdtbl td.k{font-family:var(--mono);color:var(--acc);font-weight:700}
+.stdtbl tr.pick{cursor:pointer}.stdtbl tr.pick:hover td{background:var(--panel2)}
+.dots{display:flex;gap:3px}
+.dots i{width:10px;height:10px;border-radius:3px;background:var(--line2)}
+.dots i.ok{background:var(--acc)}.dots i.warn{background:var(--warn)}.dots i.err{background:var(--err)}
+dialog.big{max-width:min(860px,calc(100% - 32px));width:100%}
+.dlgbody{max-height:62vh;overflow:auto;margin:0 -4px;padding:0 4px}
+.rules{margin:12px 0 0;padding-left:18px;color:var(--muted);font-size:12.5px}
+.rules li{margin:3px 0}
+@media (max-width:640px){
+  .mm{grid-template-columns:1fr}
+  .mhead{display:none}
+  .mrow{grid-template-columns:20px minmax(0,1fr) minmax(0,1fr) 40px;grid-template-areas:"n a b d" "n t t t" "n w w w"}
+  .mrow .n{grid-area:n}.mrow .s1{grid-area:a}.mrow .s2{grid-area:b}.mrow .knob{grid-area:d}.mrow .dst{grid-area:t}
+  .mrow .txt{grid-area:w;white-space:normal}
+  .grid{grid-template-columns:1fr}
+  .sep{display:none}
+  .top{position:static}
+  .kbbar .lbl{display:none}
+  .keys{height:60px}
+}
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="bar">
+    <div class="brand">
+      <div class="logo" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      <div>Knobwise<small>Patch editor · original Novation Circuit</small></div>
+    </div>
+    <div class="midi">
+      <span class="dot" id="dot"></span>
+      <span class="st" id="status">MIDI not connected</span>
+      <button class="btn" id="connect">Connect MIDI</button>
+      <label class="port">In <select id="inSel" aria-label="MIDI in port"></select></label>
+      <label class="port">Out <select id="outSel" aria-label="MIDI out port"></select></label>
+    </div>
+    <div class="spacer"></div>
+    <div class="seg" role="group" aria-label="Synth part">
+      <button id="syn1" aria-pressed="true">Synth 1</button>
+      <button id="syn2" aria-pressed="false">Synth 2</button>
+    </div>
+  </div>
+  <div class="bar bar2">
+    <div class="name">
+      <input id="pname" maxlength="16" spellcheck="false" aria-label="Patch name">
+      <select id="pcat" aria-label="Category"></select>
+      <select id="pgen" aria-label="Genre"></select>
+      <span class="slot" id="slotLbl"></span>
+      <span class="unsaved" id="unsavedLbl" hidden title="The patch has changed since it was last read, stored in a slot or exported">unsaved</span>
+      <button class="stdbtn" id="stdChip" title="Knob standard compliance"><span class="chip" id="stdChipDot">·</span><span id="stdChipTxt">Standard</span></button>
+    </div>
+    <div class="spacer"></div>
+    <div class="grp">
+      <button class="btn" id="bRead" title="Read the current patch from the Circuit (SysEx)">Read from Circuit</button>
+      <button class="btn pri" id="bSend" title="Send the whole patch to the Circuit (RAM only, not stored)">Send patch</button>
+      <button class="btn" id="bStore" title="Store the patch in one of the 64 flash memory slots">Store in slot…</button>
+    </div>
+    <span class="sep"></span>
+    <div class="grp">
+      <button class="btn" id="bOpen">Open .syx</button>
+      <button class="btn" id="bExport">Export .syx</button>
+      <button class="btn" id="bBankDl" title="Download all 64 slots from the Circuit">Back up bank</button>
+      <input type="file" id="file" accept=".syx,application/octet-stream">
+    </div>
+    <span class="sep"></span>
+    <div class="grp">
+      <button class="btn ghost" id="bUndo" title="Undo (Ctrl+Z)">↶</button>
+      <button class="btn ghost" id="bRedo" title="Redo (Ctrl+Shift+Z)">↷</button>
+      <button class="btn ghost" id="bMutate" title="Slightly vary the parameters">Mutate</button>
+      <button class="btn ghost" id="bInit" title="Initial patch">Init</button>
+    </div>
+  </div>
+  <div class="bar bar2 notice" id="notice" hidden>
+    <span class="txt" id="noticeTxt"></span>
+    <div class="grp" id="noticeBtns"></div>
+  </div>
+  <div class="bar bar2 bank" id="bankBar">
+    <span class="slot">BANK</span>
+    <select id="bankSel" aria-label="Bank patch"></select>
+    <button class="btn" id="bBankPut" title="Copy the editor patch into the selected bank slot">Update bank slot</button>
+    <button class="btn" id="bBankStd">Check standard</button>
+    <button class="btn" id="bBankExport">Export bank .syx</button>
+    <button class="btn" id="bBankSend" title="Write all 64 slots to the Circuit memory">Send bank to Circuit</button>
+    <button class="btn ghost" id="bBankClose">Close</button>
+  </div>
+</header>
+
+<div class="banner" id="banner" hidden><div id="bannerTxt"></div></div>
+
+<main>
+  <nav class="secbar" id="secbar" aria-label="Sections to show"><span class="lbl">Show</span></nav>
+  <div class="grid" id="panels"></div>
+
+  <section class="panel wide" data-g="mm">
+    <div class="sechead"><h2>Modulation matrix</h2><span class="hint">20 slots · source 1, multiplied by source 2, moves the destination by the depth. Depth 0 = slot off.</span></div>
+    <div class="mm" id="mm"></div>
+  </section>
+
+  <section class="panel wide" data-g="mac">
+    <div class="sechead"><h2>Macros</h2><span class="hint" id="stdSummary"></span><div class="spacer"></div>
+      <button class="btn" id="bStdInfo">The standard</button>
+      <button class="btn" id="bStdFill" title="Moves misplaced destinations to their knob, fills empty knobs, leaves the rest as it is">Complete to standard</button>
+      <button class="btn ghost" id="bStdAll" title="Rewrites all 8 knobs with the standard assignments">Rewrite all knobs</button>
+    </div>
+    <div class="macros" id="macros"></div>
+  </section>
+
+  <footer class="foot" id="foot"></footer>
+</main>
+
+<div class="kb" id="kb">
+  <div class="kbbar">
+    <span class="lbl">Keyboard</span>
+    <button class="btn ghost" id="octDn" title="Octave down (Z)">−</button>
+    <span class="slot" id="octLbl">C3</span>
+    <button class="btn ghost" id="octUp" title="Octave up (X)">+</button>
+    <label class="port">Velocity <select id="vel"><option>40</option><option>70</option><option selected>100</option><option>127</option></select></label>
+    <span class="lbl" style="color:var(--dim)">Keys A W S E D F T G Y H U J K</span>
+    <div class="spacer"></div>
+    <button class="btn ghost" id="panic" title="All notes off">Panic</button>
+    <button class="btn ghost" id="kbToggle">Hide</button>
+  </div>
+  <div class="keys"><div class="inner" id="keys"></div></div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<dialog id="slotDlg">
+  <h3>Store in the Circuit memory</h3>
+  <p>The patch will be written to flash memory and will replace the one in the chosen slot.</p>
+  <select id="slotPick" aria-label="Slot"></select>
+  <div class="row">
+    <button class="btn" value="cancel" id="slotCancel">Cancel</button>
+    <button class="btn pri" id="slotOk">Overwrite slot</button>
+  </div>
+</dialog>
+
+<dialog id="askDlg">
+  <h3></h3>
+  <p></p>
+  <div class="row"></div>
+</dialog>
+
+<dialog id="stdDlg" class="big">
+  <h3>Knob standard</h3>
+  <p>Every patch assigns the 8 macro knobs to the same functions, so you know what each knob does whatever sound you load. Clockwise always gives “more”.</p>
+  <div class="dlgbody"><table class="stdtbl" id="stdTbl"></table>
+  <ul class="rules" id="stdRules"></ul></div>
+  <div class="row"><button class="btn pri" id="stdClose">Close</button></div>
+</dialog>
+
+<dialog id="bankStdDlg" class="big">
+  <h3>Bank standard check</h3>
+  <p id="bankStdSum"></p>
+  <div class="dlgbody"><table class="stdtbl" id="bankStdTbl"></table></div>
+  <div class="row">
+    <button class="btn" id="bankStdFill">Complete the whole bank</button>
+    <button class="btn pri" id="bankStdClose">Close</button>
+  </div>
+</dialog>
+
+<script>
+'use strict';
+/* Editor version: change it here at every release. It is shown at the bottom of the page. */
+const APP_VERSION='0.1.3';
+const APP_DATE='2026-11-09';
+/* =====================================================================
+   Data from the "Circuit Programmer's Reference Guide" (Novation)
+   ===================================================================== */
+const WAVES=['Sine','Triangle','Sawtooth','Saw 9:1 PW','Saw 8:2 PW','Saw 7:3 PW','Saw 6:4 PW','Saw 5:5 PW','Saw 4:6 PW','Saw 3:7 PW','Saw 2:8 PW','Saw 1:9 PW','Pulse width','Square','Sine table','Analogue pulse','Analogue sync','Triangle-saw blend','Digital nasty 1','Digital nasty 2','Digital saw-square','Digital vocal 1','Digital vocal 2','Digital vocal 3','Digital vocal 4','Digital vocal 5','Digital vocal 6','Random collection 1','Random collection 2','Random collection 3'];
+const LFO_WAVES=['Sine','Triangle','Sawtooth','Square','Random S/H','Time S/H','Piano envelope','Sequence 1','Sequence 2','Sequence 3','Sequence 4','Sequence 5','Sequence 6','Sequence 7','Alternative 1','Alternative 2','Alternative 3','Alternative 4','Alternative 5','Alternative 6','Alternative 7','Alternative 8','Chromatic','Chromatic 16','Major','Major 7','Minor 7','Min arp 1','Min arp 2','Diminished','Dec minor','Minor 3rd','Pedal','4ths','4ths x12','1625 maj','1625 min','2511'];
+const SYNC=['Off','1/32T','1/32','1/16T','1/16','1/8T','1/16D','1/8','1/4T','1/8D','1/4','1+1/3 beat','1/4D','2 beat','2+2/3 beat','3 beat','4 beat','5+1/3 beat','6 beat','8 beat','10+2/3 beat','12 beat','13+1/3 beat','16 beat','18 beat','18+2/3 beat','20 beat','21+1/3 beat','24 beat','28 beat','30 beat','32 beat','36 beat','42 beat','48 beat','64 beat'];
+const DRIVE=['Diode','Valve','Clipper','Cross-over','Rectifier','Bit reducer','Rate reducer'];
+const FILTER=['Low pass 12 dB','Low pass 24 dB','Band pass 6/6 dB','Band pass 12/12 dB','High pass 12 dB','High pass 24 dB'];
+const ROUTING=['Normal','Osc 1 bypasses the filter','Osc 1+2 bypass the filter'];
+const POLY=['Mono','Mono AG','Poly'];
+const CATS=['No category','Arp','Bass','Bell','Classic','Drum','Keyboard','Lead','Movement','Pad','Poly','SFX','String','User','Voc/Tune'];
+const GENRES=['No genre','Classic','D&B/Breaks','House','Industrial','Jazz','R&B/HHop','Rock/Pop','Techno','Dubstep'];
+const MOD_SRC=['Direct','Mod wheel','Aftertouch','Expression','Velocity','Keyboard','LFO 1 +','LFO 1 ±','LFO 2 +','LFO 2 ±','Env 1 (amp)','Env 2 (filter)','Env 3'];
+const MOD_DST=['Osc 1+2 pitch','Osc 1 pitch','Osc 2 pitch','Osc 1 v-sync','Osc 2 v-sync','Osc 1 PW/index','Osc 2 PW/index','Osc 1 level','Osc 2 level','Noise level','Ring mod level','Filter drive','Filter frequency','Filter resonance','LFO 1 rate','LFO 2 rate','Env 1 decay','Env 2 decay'];
+const FADE=['Fade in','Fade out','Gate in','Gate out'];
+const CHORUS_T=['Phaser','Chorus'];
+const MACRO_DST=['Off','Portamento','Post FX','Osc 1 interpolate','Osc 1 PW/index','Osc 1 v-sync','Osc 1 density','Osc 1 density detune','Osc 1 semitones','Osc 1 cents','Osc 2 interpolate','Osc 2 PW/index','Osc 2 v-sync','Osc 2 density','Osc 2 density detune','Osc 2 semitones','Osc 2 cents','Osc 1 level','Osc 2 level','Ring mod','Noise','Filter frequency','Filter resonance','Filter drive','Filter tracking','Env 2 → freq','Env 1 attack','Env 1 decay','Env 1 sustain','Env 1 release','Env 2 attack','Env 2 decay','Env 2 sustain','Env 2 release','Env 3 delay','Env 3 attack','Env 3 decay','Env 3 sustain','Env 3 release','LFO 1 rate','LFO 1 rate sync','LFO 1 slew','LFO 2 rate','LFO 2 rate sync','LFO 2 slew','Distortion','Chorus level','Chorus rate','Chorus feedback','Chorus depth','Chorus delay',...Array.from({length:20},(_,i)=>`Mod ${i+1} depth`)];
+
+/* patch address of the parameter controlled by each macro destination */
+const MACRO_ADDR=[null,33,59,37,38,39,40,41,42,43,46,47,48,49,50,51,52,54,55,56,57,64,66,61,65,68,70,71,72,73,75,76,77,78,79,80,81,82,83,89,90,86,97,98,94,100,102,119,121,122,123,...Array.from({length:20},(_,i)=>126+i*4)];
+
+/* =====================================================================
+   KNOB STANDARD
+   - knob n → always the same function (STD[n-1])
+   - clockwise = "more"
+   - stored position = 0 (64 for Cutoff): a loaded patch sounds as designed
+   ===================================================================== */
+const MOD_DEPTHS=Array.from({length:20},(_,i)=>51+i);
+const isWT=w=>w>=14, hasPW=w=>(w>=3&&w<=12)||w>=14;
+const osc1On=b=>b[54]>0||b[56]>0, osc2On=b=>b[55]>0||b[56]>0;
+const STD=[
+  {name:'Tone',cw:'Soft to harsh: wavetable position, pulse width / index, sync',
+   allowed:[3,10,4,11,5,12,6,13,7,14,8,15,9,16,17,18,19,20],rules:{},
+   template:b=>{const t=[];
+     const osc=(w,interp,pw,vs)=>t.push(isWT(w)?{d:interp,dir:'auto',amt:40}:hasPW(w)?{d:pw,dir:'auto',amt:40}:{d:vs,dir:1,amt:40});
+     if(osc1On(b)) osc(b[36],3,4,5);
+     if(osc2On(b)) osc(b[45],10,11,12);
+     return t.length?t:[{d:20,dir:1,amt:40}]}},
+  {name:'Cutoff',cw:'Centre = the saved sound: left closes, right opens',home:64,
+   allowed:[21,24],rules:{21:'+'},
+   template:()=>[{d:21,dir:1,amt:50}]},
+  {name:'Resonance',cw:'More resonance',
+   allowed:[22],rules:{22:'+'},
+   template:()=>[{d:22,dir:1,amt:50}]},
+  {name:'Env Mod',cw:'More filter envelope (Env 2 → frequency)',
+   allowed:[25],rules:{25:'mag'},
+   template:()=>[{d:25,dir:'mag',amt:40}]},
+  {name:'Attack',cw:'Percussive to soft: amp and filter attack',
+   allowed:[26,30],rules:{26:'+',30:'+'},
+   template:()=>[{d:26,dir:1,amt:40},{d:30,dir:1,amt:40}]},
+  {name:'Length',cw:'Short to long: amp decay, release and sustain, filter decay',
+   allowed:[27,29,31,33,28,32],rules:{27:'+',29:'+',31:'+',33:'+',28:'+',32:'+'},
+   template:()=>[{d:27,dir:1,amt:40},{d:29,dir:1,amt:40},{d:31,dir:1,amt:40}]},
+  {name:'Drive',cw:'Clean to saturated: distortion and filter drive',
+   allowed:[45,23],rules:{45:'+',23:'+'},
+   template:()=>[{d:45,dir:1,amt:50}]},
+  {name:'Motion',cw:'Still to alive: modulation depths, LFO speed, chorus/phaser, glide',
+   allowed:[...MOD_DEPTHS,39,40,41,42,43,44,34,35,36,37,38,46,47,48,49,50,1],rules:{...Object.fromEntries(MOD_DEPTHS.map(d=>[d,'mag'])),39:'+',42:'+',46:'+',47:'+',49:'+',1:'+'},
+   template:b=>{const t=[];
+     for(let i=0;i<20&&t.length<2;i++){const m=124+i*4; if(b[m+2]!==64&&!modUnset(b,i)) t.push({d:51+i,dir:'mag',amt:30})}
+     if(t.length) return t;
+     /* no active modulation: create LFO 1 ± → filter at depth 0 in a free slot (the sound does not change) */
+     for(let i=0;i<20;i++){const m=124+i*4; if(modUnset(b,i)&&b[m+2]===64){b[m]=7;b[m+1]=0;b[m+3]=12;return [{d:51+i,dir:1,amt:30}]}}
+     return [{d:39,dir:1,amt:30}]}},
+];
+const STD_RULES=[
+  'Knob N has the same function in every patch and only uses destinations of that function. Every destination has exactly one home knob.',
+  'Left to right, the knobs follow the signal path: oscillators → filter → amplifier → distortion. The last knob is the modulator, which acts on everything.',
+  'Clockwise always gives “more” of the function: harsher, brighter, more resonance, more envelope, slower, longer, dirtier, more motion.',
+  'Stored position = 0 (fully left) for every knob except 2 “Cutoff”, stored at the centre (64). A freshly loaded patch sounds exactly as designed.',
+  'Resonance and filter envelope amount stay on two separate knobs, so they can be balanced against each other.',
+  'All 8 knobs have at least one destination with an audible effect. No knob controls the Post FX level, so turning a knob never changes the patch volume.',
+  'Every patch has its own name (not “Initial Patch”) and a category.',
+];
+function modUnset(b,i){const m=124+i*4;return b[m]===0&&b[m+1]===0&&b[m+3]===0}
+function nameOf(b){let s='';for(let i=0;i<16;i++){const c=b[i];s+=c>=32&&c<127?String.fromCharCode(c):' '}return s.trim()}
+/* effect (in parameter steps) of a macro slot with the knob at position P.
+   Model: depth ±64 = the parameter's full range, linear between start and end.
+   Verified on a Circuit (filter frequency, start 0, end 127): depth +32 adds 64 steps at position 127 and 32 at position 64. */
+function contrib(b,s,P){
+  const p=PARAMS[String(MACRO_ADDR[b[s]])]; if(!p) return 0;
+  const st=b[s+1],en=b[s+2],dep=b[s+3]-64;
+  const f=en>st?Math.min(1,Math.max(0,(P-st)/(en-st))):(P>=st?1:0);
+  return dep/64*(p.max-p.min)*f;
+}
+function checkPatch(b){
+  const knobs=[];let errs=0,warns=0;
+  for(let k=0;k<8;k++){
+    const a=204+k*17,S=STD[k],msgs=[];let level='ok';
+    const add=(l,text)=>{msgs.push({level:l,text});if(l==='err')level='err';else if(level!=='err')level='warn'};
+    const slots=[0,1,2,3].map(r=>a+1+r*4).filter(s=>b[s]!==0);
+    if(!slots.length) add('err','No destination assigned');
+    const home=S.home??0;
+    if(b[a]!==home) add('warn',`Stored position ${b[a]}: the standard wants ${home}`);
+    for(const s of slots){
+      const d=b[s],nm=MACRO_DST[d]??`#${d}`,sl='ABCD'[(s-a-1)/4];
+      if(!S.allowed.includes(d)){const h=DEST_HOME[d];
+        add('err',h==null?`${sl}: “${nm}” is not allowed on any knob (it changes the volume)`:`${sl}: “${nm}” belongs to knob ${h+1} ${STD[h].name}`);continue}
+      const dep=b[s+3]-64;
+      if(dep===0){add('warn',`${sl}: depth 0, no effect`);continue}
+      if(b[s+1]>=b[s+2]) add('warn',`${sl}: start ≥ end`);
+      const addr=MACRO_ADDR[d],p=PARAMS[String(addr)],base=b[addr],rule=S.rules[d];
+      if(rule==='+'&&dep<0) add('warn',`${sl}: reversed, “${nm}” must increase clockwise`);
+      if(rule==='mag'&&base!==64&&Math.sign(dep)!==Math.sign(base-64)) add('warn',`${sl}: reduces “${nm}” instead of increasing it`);
+      if(p&&((dep>0&&base>=p.max)||(dep<0&&base<=p.min))) add('warn',`${sl}: “${nm}” is already at its limit (${base}), the knob has no effect`);
+      if(d>=51&&modUnset(b,d-51)) add('warn',`${sl}: matrix slot ${d-50} is not set up`);
+    }
+    if(level==='err')errs++;else if(level==='warn')warns++;
+    knobs.push({level,msgs});
+  }
+  const meta=[];
+  const nm=nameOf(b);
+  if(!nm||nm===DEFAULT_NAME) meta.push('Patch name missing');
+  if(b[16]===0) meta.push('Category missing');
+  return {knobs,meta,errs,warns,ok:!errs&&!warns&&!meta.length};
+}
+/* home knob of each macro destination (null = allowed on no knob: Post FX level) */
+const DEST_HOME=MACRO_DST.map((_,d)=>{const k=STD.findIndex(S=>S.allowed.includes(d));return k<0?null:k});
+const slotAddr=(k,r)=>204+k*17+1+r*4;
+/* fold the slot's effect at knob position P into the base value */
+function bake(b,s,P){
+  const addr=MACRO_ADDR[b[s]],p=PARAMS[String(addr)];if(!p||p.options) return;
+  b[addr]=Math.min(p.max,Math.max(p.min,Math.round(b[addr]+contrib(b,s,P))));
+}
+/* subtract the effect at position H from the base value, so the sound stays the same.
+   If the value would go out of range, keep it at the limit and move the slot start instead. */
+function unbake(b,s,H){
+  const addr=MACRO_ADDR[b[s]],p=PARAMS[String(addr)];if(!p||p.options) return;
+  const want=contrib(b,s,H);if(!want) return;
+  const base=b[addr],nb=base-want;
+  if(nb>=p.min&&nb<=p.max){b[addr]=Math.round(nb);return}
+  const lim=nb<p.min?p.min:p.max, en=b[s+2];
+  const F=(b[s+3]-64)/64*(p.max-p.min), r=F?(base-lim)/F:0;   // 0 ≤ r < 1
+  b[addr]=lim;
+  b[s+1]=Math.round(Math.min(H,Math.max(0,(H-r*en)/(1-r))));
+}
+/* mode 'fill': move misplaced destinations to their home knob, remove only Post FX,
+                fill empty knobs and set stored positions to the standard.
+   mode 'all' : rewrite every knob with the standard assignments.
+   Returns what was done. */
+function applyStandard(b,mode='fill'){
+  const homes=STD.map(S=>S.home??0), log={moved:[],removed:[],stuck:[],filled:[],positions:[]};
+  // 1. plan: which slots stay, which move
+  const stay=[0,0,0,0,0,0,0,0], out=[];
+  for(let k=0;k<8;k++) for(let r=0;r<4;r++){
+    const s=slotAddr(k,r),d=b[s];if(!d) continue;
+    const h=mode==='all'?-1:DEST_HOME[d];
+    if(h===k) stay[k]++; else out.push({k,r,s,d,h});
+  }
+  const free=stay.map(n=>4-n), moves=[];
+  for(const o of out){
+    if(o.h==null||o.h===-1){o.drop=true;continue}
+    if(free[o.h]>0){free[o.h]--;moves.push(o)}
+    else{log.stuck.push({d:o.d,from:o.k,to:o.h});stay[o.k]++}   // target knob full: leave it where it is
+  }
+  // 2. lift the slots to move or remove, keeping the sound
+  const lifted=[];
+  for(const o of out){
+    if(!o.drop&&!moves.includes(o)) continue;
+    bake(b,o.s,b[204+o.k*17]);
+    lifted.push({...o,st:b[o.s+1],en:b[o.s+2],dep:b[o.s+3]});
+    b[o.s]=0;b[o.s+1]=0;b[o.s+2]=127;b[o.s+3]=64;
+    if(o.drop&&mode==='fill') log.removed.push({d:o.d,from:o.k});
+  }
+  // 3. stored positions to the standard (compensating the remaining slots)
+  for(let k=0;k<8;k++){
+    const a=204+k*17;if(b[a]===homes[k]) continue;
+    for(let r=0;r<4;r++){const s=slotAddr(k,r);if(b[s]) bake(b,s,b[a])}
+    if(mode==='fill') log.positions.push({k,from:b[a],to:homes[k]});
+    b[a]=homes[k];
+    for(let r=0;r<4;r++){const s=slotAddr(k,r);if(b[s]) unbake(b,s,homes[k])}
+  }
+  // 4. put the slots on their home knob, start, end and depth unchanged
+  for(const m of lifted.filter(x=>!x.drop)){
+    let r=0;while(b[slotAddr(m.h,r)]) r++;
+    const s=slotAddr(m.h,r);
+    b[s]=m.d;b[s+1]=m.st;b[s+2]=m.en;b[s+3]=m.dep;
+    unbake(b,s,homes[m.h]);
+    log.moved.push({d:m.d,from:m.k,to:m.h});
+  }
+  // 5. empty knobs → standard assignments
+  for(let k=0;k<8;k++){
+    if([0,1,2,3].some(r=>b[slotAddr(k,r)])) continue;
+    STD[k].template(b).slice(0,4).forEach((t,r)=>{
+      const s=slotAddr(k,r),addr=MACRO_ADDR[t.d],p=PARAMS[String(addr)],base=b[addr];
+      const dir=t.dir==='auto'?((p.max-base)>=(base-p.min)?1:-1):t.dir==='mag'?(base>=64?1:-1):t.dir;
+      b[s]=t.d;b[s+1]=0;b[s+2]=127;b[s+3]=Math.min(127,Math.max(0,64+dir*t.amt));
+      unbake(b,s,homes[k]);
+    });
+    log.filled.push(k);
+  }
+  log.count=log.moved.length+log.removed.length+log.filled.length+log.positions.length;
+  return log;
+}
+function describeLog(l){
+  const n=k=>`${k+1} ${STD[k].name}`;
+  const parts=[];
+  if(l.moved.length) parts.push('Moved: '+l.moved.map(m=>`${MACRO_DST[m.d]} ${m.from+1}→${m.to+1}`).join(', '));
+  if(l.removed.length) parts.push('Removed: '+l.removed.map(m=>`${MACRO_DST[m.d]} (knob ${m.from+1})`).join(', '));
+  if(l.filled.length) parts.push('Filled: knob '+l.filled.map(k=>k+1).join(', '));
+  if(l.positions.length) parts.push('Stored position reset: knob '+l.positions.map(p=>p.k+1).join(', '));
+  if(l.stuck.length) parts.push('Not moved (knob full): '+l.stuck.map(m=>`${MACRO_DST[m.d]} → knob ${m.to+1}`).join(', '));
+  return parts.join(' · ');
+}
+
+const PATCH_LEN=340;
+const SX_HDR=[0xF0,0x00,0x20,0x29,0x01,0x60];
+const DEFAULT_NAME='Initial Patch';
+
+/* ---------- formatter ---------- */
+const sgn=n=>n>0?'+'+n:String(n);
+const F={
+  c:v=>sgn(v-64), semi:v=>sgn(v-64)+' st', db:v=>sgn(v-64)+' dB', deg:v=>(v*3)+'°'
+};
+
+/* ---------- state ---------- */
+const patch=new Uint8Array(PATCH_LEN);
+const PARAMS={};               // id -> param
+const ccMap={}, nrpnMap={};    // incoming
+const views={};                // id -> [fn update]
+const watchers={};             // id -> [fn]
+let synth=0;                   // 0 = Synth 1, 1 = Synth 2
+
+function nr(x){return [x>>7,x&127]}
+function regParam(p){
+  PARAMS[p.id]=p;
+  if(p.cc!=null) ccMap[p.cc]=p;
+  if(p.nrpn) nrpnMap[p.nrpn[0]*128+p.nrpn[1]]=p;
+  if(p.alt) nrpnMap[p.alt[0]*128+p.alt[1]]=p;
+  return p;
+}
+/* parameter mapped 1:1 to a patch byte */
+function prm(addr,label,io,min,max,dflt,extra={}){
+  const p={id:String(addr),addr,label,min,max,dflt,...extra};
+  if(typeof io==='number') p.cc=io; else p.nrpn=io;
+  p.get=()=>patch[addr];
+  p.put=v=>{patch[addr]=v};
+  p.send=v=>{
+    if(p.cc!=null) sendCC(p.cc,v); else sendNRPN(p.nrpn[0],p.nrpn[1],v);
+    if(p.alt) sendNRPN(p.alt[0],p.alt[1],v);
+  };
+  return regParam(p);
+}
+
+/* Voice */
+prm(32,'Polyphony',3,0,2,2,{options:POLY});
+prm(33,'Portamento',5,0,127,0);
+prm(34,'Pre-glide',9,52,76,64,{fmt:F.semi,center:64});
+prm(35,'Octave',13,58,69,64,{fmt:F.c,center:64});
+/* Oscillators */
+[[36,[19,20,21,22,24,25,26,27,28]],[45,[29,30,31,33,35,36,37,39,40]]].forEach(([b,cc])=>{
+  prm(b,  'Waveform',cc[0],0,29,2,{options:WAVES});
+  prm(b+1,'Interpolate',cc[1],0,127,127);
+  prm(b+2,'PW / Index',cc[2],0,127,64,{fmt:F.c,center:64});
+  prm(b+3,'V-sync',cc[3],0,127,0);
+  prm(b+4,'Density',cc[4],0,127,0);
+  prm(b+5,'Dens. detune',cc[5],0,127,0);
+  prm(b+6,'Semitones',cc[6],0,127,64,{fmt:F.c,center:64});
+  prm(b+7,'Cents',cc[7],0,127,64,{fmt:F.c,center:64});
+  prm(b+8,'Bend range',cc[8],52,76,76,{fmt:F.semi,center:64});
+});
+/* Mixer */
+prm(54,'Osc 1',51,0,127,127);
+prm(55,'Osc 2',52,0,127,0);
+prm(56,'Ring mod',54,0,127,0);
+prm(57,'Noise',56,0,127,0);
+prm(58,'Pre FX',58,52,82,64,{fmt:F.db,center:64});
+prm(59,'Post FX',59,52,82,64,{fmt:F.db,center:64});
+/* Filter */
+prm(60,'Routing',60,0,2,0,{options:ROUTING});
+prm(61,'Drive',63,0,127,0);
+prm(62,'Drive type',65,0,6,0,{options:DRIVE});
+prm(63,'Filter type',68,0,5,1,{options:FILTER});
+prm(64,'Frequency',74,0,127,127);
+prm(65,'Tracking',69,0,127,127);
+prm(66,'Resonance',71,0,127,0);
+prm(67,'Q normalise',78,0,127,64);
+prm(68,'Env 2 → Freq',79,0,127,64,{fmt:F.c,center:64});
+/* Envelopes */
+prm(69,'Velocity',108,0,127,64,{fmt:F.c,center:64});
+prm(70,'Attack',73,0,127,2); prm(71,'Decay',75,0,127,90); prm(72,'Sustain',70,0,127,127); prm(73,'Release',72,0,127,40);
+prm(74,'Velocity',[0,0],0,127,64,{fmt:F.c,center:64});
+prm(75,'Attack',[0,1],0,127,2); prm(76,'Decay',[0,2],0,127,75); prm(77,'Sustain',[0,3],0,127,35); prm(78,'Release',[0,4],0,127,45);
+prm(79,'Delay',[0,14],0,127,0); prm(80,'Attack',[0,15],0,127,10); prm(81,'Decay',[0,16],0,127,70); prm(82,'Sustain',[0,17],0,127,64); prm(83,'Release',[0,18],0,127,40);
+/* LFO */
+[[84,70],[92,79]].forEach(([b,l],i)=>{
+  prm(b,  'Waveform',[0,l],0,37,0,{options:LFO_WAVES});
+  prm(b+1,'Phase',[0,l+1],0,119,0,{fmt:F.deg});
+  prm(b+2,'Slew',[0,l+2],0,127,0);
+  prm(b+3,'Delay',[0,l+4],0,127,0);
+  prm(b+4,'Delay sync',[0,l+5],0,35,0,{options:SYNC});
+  prm(b+5,'Rate',[0,l+6],0,127,68);
+  prm(b+6,'Rate sync',[0,l+7],0,35,0,{options:SYNC});
+  /* byte flag: bit0 one shot, bit1 key sync, bit2 common sync, bit3 delay trigger, bit4-5 fade mode */
+  const byte=b+7, base=i?22:12;
+  ['One shot','Key sync','Common sync','Delay trigger'].forEach((label,bit)=>{
+    regParam({id:`${byte}:b${bit}`,label,min:0,max:1,dflt:0,toggle:true,
+      get:()=>(patch[byte]>>bit)&1,
+      put:v=>{patch[byte]=(patch[byte]&~(1<<bit))|(v<<bit)},
+      send:v=>sendNRPN(0,122,base+bit*2+v)});
+  });
+  regParam({id:`${byte}:fade`,label:'Fade mode',min:0,max:3,dflt:0,options:FADE,
+    get:()=>(patch[byte]>>4)&3,
+    put:v=>{patch[byte]=(patch[byte]&0x0F)|(v<<4)},
+    send:v=>sendNRPN(0,123,i*4+v)});
+});
+/* Effects */
+prm(100,'Level',91,0,127,0);
+prm(116,'Type',[1,0],0,6,0,{options:DRIVE});
+prm(117,'Compensation',[1,1],0,127,100);
+prm(102,'Level',93,0,127,0);
+prm(118,'Type',[1,24],0,1,1,{options:CHORUS_T});
+prm(119,'Rate',[1,25],0,127,20);
+prm(120,'Rate sync',[1,26],0,35,0,{options:SYNC});
+prm(121,'Feedback',[1,27],0,127,74,{fmt:F.c,center:64});
+prm(122,'Mod depth',[1,28],0,127,64);
+prm(123,'Delay',[1,29],0,127,64);
+prm(105,'Bass freq',[0,104],0,127,64);
+prm(106,'Bass level',[0,105],0,127,64,{fmt:F.c,center:64});
+prm(107,'Mid freq',[0,106],0,127,64);
+prm(108,'Mid level',[0,107],0,127,64,{fmt:F.c,center:64});
+prm(109,'Treble freq',[0,108],0,127,125);
+prm(110,'Treble level',[0,109],0,127,64,{fmt:F.c,center:64});
+/* Modulation matrix: 20 slots, NRPN base 1:83, stride 5 (src1, src2, —, depth, dest).
+   For slots 15–20 the guide lists src2 at base+2: we send to both addresses. */
+for(let i=0;i<20;i++){
+  const a=124+i*4, b=211+i*5;
+  prm(a,  'Source 1',nr(b),0,12,0,{options:MOD_SRC});
+  prm(a+1,'Source 2',nr(b+1),0,12,0,{options:MOD_SRC,alt:i>=14?nr(b+2):null});
+  prm(a+2,'Depth',nr(b+3),0,127,64,{fmt:F.c,center:64});
+  prm(a+3,'Destination',nr(b+4),0,17,0,{options:MOD_DST});
+}
+/* Macros: position CC 80–87, slots A–D on NRPN 3:(16k+4r) */
+for(let k=0;k<8;k++){
+  const a=204+k*17;
+  prm(a,'Position',80+k,0,127,0);
+  for(let r=0;r<4;r++){
+    const n=16*k+4*r, s=a+1+r*4;
+    prm(s,  'Destination',[3,n],0,70,0,{options:MACRO_DST});
+    prm(s+1,'Start',[3,n+1],0,127,0);
+    prm(s+2,'End',[3,n+2],0,127,127);
+    prm(s+3,'Depth',[3,n+3],0,127,64,{fmt:F.c,center:64});
+  }
+}
+
+function defaultPatch(){
+  const d=new Uint8Array(PATCH_LEN);
+  const nm=DEFAULT_NAME.padEnd(16,' ');
+  for(let i=0;i<16;i++) d[i]=nm.charCodeAt(i);
+  for(const p of Object.values(PARAMS)) if(p.addr!=null) d[p.addr]=p.dflt;
+  return d;
+}
+
+/* =====================================================================
+   MIDI
+   ===================================================================== */
+let access=null, input=null, output=null, sysexOK=false;
+const ch=()=>synth;
+function midiSend(bytes){
+  if(!output) return false;
+  try{output.send(bytes);flashDot();return true}catch(e){console.error(e);toast('MIDI send error: '+e.message,'err');return false}
+}
+function sendCC(cc,v){midiSend([0xB0|ch(),cc,v])}
+function sendNRPN(m,l,v){const s=0xB0|ch();midiSend([s,99,m,s,98,l,s,6,v])}
+
+const sxReplaceCurrent=(loc,data)=>[...SX_HDR,0x00,loc,0x00,...data,0xF7];
+const sxReplacePatch=(slot,data)=>[...SX_HDR,0x01,slot,0x00,...data,0xF7];
+const sxDumpReq=loc=>[...SX_HDR,0x40,loc,0xF7];
+
+/* coalesced sending: one message per parameter per frame */
+const pending=new Map(); let rafId=0;
+function queueSend(p,v){
+  pending.set(p.id,[p,v]);
+  if(!rafId) rafId=requestAnimationFrame(()=>{rafId=0;for(const [q,val] of pending.values()) q.send(val);pending.clear()});
+}
+
+async function connectMIDI(silent){
+  if(!navigator.requestMIDIAccess){
+    if(!silent) showBanner('This browser does not support Web MIDI. Use Chrome, Edge or Opera (or Firefox with MIDI permission). You can still edit patches and export .syx files.');
+    setStatus('Web MIDI not available','err');return;
+  }
+  try{
+    access=await navigator.requestMIDIAccess({sysex:true});sysexOK=true;
+  }catch(e){
+    try{access=await navigator.requestMIDIAccess();sysexOK=false;
+      showBanner('SysEx permission denied: live edits (CC/NRPN) work, but reading, sending and storing patches do not. Allow SysEx messages in the site settings and reload.');
+    }catch(e2){setStatus('MIDI access denied','err');if(!silent)toast('The browser denied MIDI access','err');return}
+  }
+  access.onstatechange=()=>refreshPorts(false);
+  refreshPorts(true);
+}
+function pickPort(sel,list,prev){
+  sel.innerHTML='';
+  sel.append(new Option('—',''));
+  let best='';
+  for(const p of list){
+    sel.append(new Option(p.name,p.id));
+    if(/circuit/i.test(p.name)&&!/tracks|rhythm|mono/i.test(p.name)&&!best) best=p.id;
+  }
+  const keep=prev&&list.some(p=>p.id===prev)?prev:best;
+  sel.value=keep||'';
+}
+function refreshPorts(first){
+  if(!access) return;
+  const ins=[...access.inputs.values()], outs=[...access.outputs.values()];
+  pickPort($('#inSel'),ins,input&&input.id);
+  pickPort($('#outSel'),outs,output&&output.id);
+  const hadOut=!!output;
+  bindPorts();
+  if(output&&(first||!hadOut)&&sysexOK) setTimeout(()=>autoRead('Circuit connected.'),150);
+}
+function bindPorts(){
+  if(input) input.onmidimessage=null;
+  input=access&&access.inputs.get($('#inSel').value)||null;
+  output=access&&access.outputs.get($('#outSel').value)||null;
+  if(input) input.onmidimessage=onMIDI;
+  if(output&&input) setStatus(`Connected: ${output.name}`+(sysexOK?'':' (no SysEx)'),sysexOK?'ok':'warn');
+  else if(output) setStatus(`Output only: ${output.name}`,'warn');
+  else setStatus(access?'No Circuit found: connect it via USB and choose the ports':'MIDI not connected','warn');
+  $('#connect').hidden=!!access;
+  updateButtons();
+}
+
+let nrpnM=null,nrpnL=null, dumpWaiter=null, currentSlot=null;
+function onMIDI(e){
+  const d=e.data, st=d[0];
+  if(st===0xF0) return onSysex(d);
+  const type=st&0xF0, c=st&0x0F;
+  if(c!==ch()) return;
+  if(type===0xB0){
+    const cc=d[1],v=d[2];
+    if(cc===99){nrpnM=v;return}
+    if(cc===98){nrpnL=v;return}
+    if(cc===6&&nrpnM!=null&&nrpnL!=null){onNRPN(nrpnM,nrpnL,v);return}
+    const p=ccMap[cc]; if(p) setValue(p,v,'midi');
+  }else if(type===0xC0){
+    currentSlot=d[1];updateSlotLabel();
+    setTimeout(()=>autoRead(`You selected the patch in slot ${d[1]+1} on the Circuit.`),60);
+  }
+}
+function onNRPN(m,l,v){
+  if(m===0&&l===122){
+    const lfo=v>=22?1:0, r=v-(lfo?22:12);
+    if(r<0||r>7) return;
+    const p=PARAMS[`${lfo?99:91}:b${r>>1}`]; if(p) setValue(p,r&1,'midi'); return;
+  }
+  if(m===0&&l===123){const p=PARAMS[`${v>=4?99:91}:fade`]; if(p) setValue(p,v&3,'midi'); return}
+  const p=nrpnMap[m*128+l]; if(p) setValue(p,v,'midi');
+}
+function onSysex(d){
+  if(d.length<9) return;
+  for(let i=0;i<6;i++) if(d[i]!==SX_HDR[i]) return;
+  if(d[6]===0x00&&d.length===PATCH_LEN+10){
+    const data=d.slice(9,9+PATCH_LEN), loc=d[7];
+    if(dumpWaiter){const w=dumpWaiter;dumpWaiter=null;w(data,loc);return}
+    const take=()=>{loadPatch(data);if(loc!==synth) setSynth(loc,false);toast(`Patch received from Synth ${loc+1}: “${patchName()}”`,'ok')};
+    if(!isUnsaved()) return take();
+    notice(`A patch arrived from the Circuit (Synth ${loc+1}). The unsaved changes to “${patchName()||'untitled'}” are still in the editor.`,[
+      {label:'Export .syx',fn:exportSingle,keep:true},
+      {label:'Load the received patch',fn:take,pri:true}]);
+  }
+}
+function requestDump(timeout=1500){
+  return new Promise((res,rej)=>{
+    const t=setTimeout(()=>{dumpWaiter=null;rej(new Error('timeout'))},timeout);
+    dumpWaiter=(data,loc)=>{clearTimeout(t);res(data)};
+    if(!midiSend(sxDumpReq(synth))){clearTimeout(t);dumpWaiter=null;rej(new Error('no output'))}
+  });
+}
+async function readFromCircuit(quiet){
+  if(!output||!sysexOK) return;
+  try{
+    const data=await requestDump();
+    loadPatch(data);needsSysex(false);hideNotice();
+    if(!quiet) toast(`Read patch from Synth ${synth+1}: “${patchName()}”`,'ok');
+  }catch(e){
+    if(!quiet) toast('No answer from the Circuit. It only answers SysEx over USB.','err');
+  }
+}
+function sendPatch(quiet){
+  if(!output||!sysexOK) return false;
+  midiSend(sxReplaceCurrent(synth,patch));needsSysex(false);hideNotice();
+  if(!quiet) toast(`Patch sent to Synth ${synth+1}`,'ok');
+  return true;
+}
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+
+/* =====================================================================
+   Values and UI
+   ===================================================================== */
+const $=(s,r=document)=>r.querySelector(s);
+function el(tag,attrs={},...kids){
+  const e=document.createElement(tag);
+  for(const [k,v] of Object.entries(attrs)){
+    if(k==='class') e.className=v; else if(k.startsWith('on')) e.addEventListener(k.slice(2),v);
+    else if(v!==null&&v!==undefined&&v!==false) e.setAttribute(k,v===true?'':v);
+  }
+  for(const k of kids) if(k!=null) e.append(k);
+  return e;
+}
+const clamp=(v,a,b)=>Math.min(b,Math.max(a,v));
+function fmtVal(p,v){return p.options?(p.options[v]??v):p.fmt?p.fmt(v):String(v)}
+
+function setValue(p,v,src='ui'){
+  v=clamp(Math.round(v),p.min,p.max);
+  if(p.get()===v) return;
+  p.put(v);
+  refresh(p.id);
+  if(src==='ui') queueSend(p,v);
+  scheduleHistory();scheduleStd();
+}
+function refresh(id){
+  (views[id]||[]).forEach(f=>f());
+  (watchers[id]||[]).forEach(f=>f());
+}
+function refreshAll(){
+  for(const id in views) refresh(id);
+  for(const id in watchers) if(!views[id]) watchers[id].forEach(f=>f());
+  $('#pname').value=patchName(true);
+  $('#pcat').value=patch[16]<CATS.length?patch[16]:0;
+  $('#pgen').value=patch[17]<GENRES.length?patch[17]:0;
+  scheduleStd();
+}
+function watch(ids,fn){for(const id of ids)(watchers[String(id)]??=[]).push(fn);fn()}
+function view(id,fn){(views[id]??=[]).push(fn)}
+
+/* ---------- knob ---------- */
+const A0=-135,A1=135;
+const knobById={};
+function polar(r,a){const t=a*Math.PI/180;return [30+r*Math.sin(t),30-r*Math.cos(t)]}
+function arc(r,a0,a1){
+  if(Math.abs(a1-a0)<.5) return '';
+  if(a0>a1)[a0,a1]=[a1,a0];
+  const [x0,y0]=polar(r,a0),[x1,y1]=polar(r,a1);
+  return `M${x0.toFixed(2)} ${y0.toFixed(2)}A${r} ${r} 0 ${a1-a0>180?1:0} 1 ${x1.toFixed(2)} ${y1.toFixed(2)}`;
+}
+function knob(id,{sm=false,label=true}={}){
+  const p=PARAMS[id];
+  const svgNS='http://www.w3.org/2000/svg';
+  const svg=document.createElementNS(svgNS,'svg');svg.setAttribute('viewBox','0 0 60 60');
+  svg.innerHTML=`<path class="trk" d="${arc(24,A0,A1)}"/><path class="val"/><circle class="cap" cx="30" cy="30" r="16"/><line class="ptr"/>`;
+  const val=svg.querySelector('.val'),ptr=svg.querySelector('.ptr');
+  const dial=el('div',{class:'dial',tabindex:0,role:'slider','aria-label':p.label,'aria-valuemin':p.min,'aria-valuemax':p.max,title:`${p.label} — drag, scroll wheel, double-click = default`},svg);
+  const out=el('output',{class:'kv'});
+  const wrap=el('div',{class:'knob'+(sm?' sm':'')},dial,out,label?el('span',{class:'kl',title:p.label},p.label):null);
+  const ang=v=>A0+(A1-A0)*(v-p.min)/(p.max-p.min);
+  const upd=()=>{
+    const v=p.get(), a=ang(v), c=p.center!=null?ang(p.center):A0;
+    val.setAttribute('d',arc(24,c,a));
+    const [x0,y0]=polar(6,a),[x1,y1]=polar(13,a);
+    ptr.setAttribute('x1',x0);ptr.setAttribute('y1',y0);ptr.setAttribute('x2',x1);ptr.setAttribute('y2',y1);
+    const t=fmtVal(p,v);out.textContent=t;
+    dial.setAttribute('aria-valuenow',v);dial.setAttribute('aria-valuetext',t);
+  };
+  view(p.id,upd);upd();
+  if(!knobById[p.id]) knobById[p.id]=wrap;
+  // interaction
+  let sy=0,sv=0,acc=0;
+  const range=p.max-p.min;
+  dial.addEventListener('pointerdown',e=>{
+    if(e.button!==0) return;
+    dial.setPointerCapture(e.pointerId);sy=e.clientY;sv=p.get();acc=0;dial.focus();e.preventDefault();
+  });
+  dial.addEventListener('pointermove',e=>{
+    if(!dial.hasPointerCapture(e.pointerId)) return;
+    const px=e.shiftKey?600:180;           // pixels for the full range
+    setValue(p,sv+(sy-e.clientY)*range/px);
+  });
+  dial.addEventListener('wheel',e=>{
+    e.preventDefault();
+    acc+=-e.deltaY;
+    const step=e.shiftKey?1:Math.max(1,Math.round(range/64));
+    while(Math.abs(acc)>=40){setValue(p,p.get()+Math.sign(acc)*step);acc-=Math.sign(acc)*40}
+  },{passive:false});
+  dial.addEventListener('dblclick',()=>setValue(p,p.dflt));
+  dial.addEventListener('keydown',e=>{
+    const big=Math.max(1,Math.round(range/10));
+    const m={ArrowUp:1,ArrowRight:1,ArrowDown:-1,ArrowLeft:-1,PageUp:big,PageDown:-big}[e.key];
+    if(m){setValue(p,p.get()+m);e.preventDefault();e.stopPropagation()}
+    else if(e.key==='Home'){setValue(p,p.min);e.preventDefault()}
+    else if(e.key==='End'){setValue(p,p.max);e.preventDefault()}
+  });
+  return wrap;
+}
+function select(id,{label=true,cls=''}={}){
+  const p=PARAMS[id];
+  const s=el('select',{'aria-label':p.label});
+  p.options.forEach((o,i)=>s.append(new Option(`${o}`,i)));
+  s.addEventListener('change',()=>setValue(p,+s.value));
+  view(p.id,()=>{s.value=p.get()});s.value=p.get();
+  return label?el('label',{class:'sel '+cls},el('span',{},p.label),s):(cls&&s.classList.add(...cls.split(' ')),s);
+}
+function toggle(id){
+  const p=PARAMS[id];
+  const c=el('input',{type:'checkbox'});
+  c.addEventListener('change',()=>setValue(p,c.checked?1:0));
+  view(p.id,()=>{c.checked=!!p.get()});c.checked=!!p.get();
+  return el('label',{class:'tog'},c,p.label);
+}
+function envSvg(ids){
+  const svgNS='http://www.w3.org/2000/svg';
+  const svg=document.createElementNS(svgNS,'svg');
+  svg.setAttribute('class','envsvg');svg.setAttribute('viewBox','0 0 240 54');svg.setAttribute('preserveAspectRatio','none');
+  svg.innerHTML='<path class="fl"/><path class="ln"/>';
+  const [fl,ln]=svg.children;
+  watch(ids.filter(Boolean),()=>{
+    const g=id=>id?patch[id]:0;
+    const [dl,a,d,s,r]=ids.map(g);
+    const H=50,T=3,w=x=>4+x/127*44;
+    let x=2;const pts=[[x,H]];
+    if(ids[0]){x+=w(dl)-4;pts.push([x,H])}
+    x+=w(a);pts.push([x,T]);
+    x+=w(d);const sy=H-(H-T)*s/127;pts.push([x,sy]);
+    x+=36;pts.push([x,sy]);
+    x+=w(r);pts.push([x,H]);
+    const sc=Math.min(1,236/x);
+    const P=pts.map(([px,py])=>`${(px*sc).toFixed(1)} ${py.toFixed(1)}`);
+    ln.setAttribute('d','M'+P.join('L'));
+    fl.setAttribute('d','M'+P.join('L')+'Z');
+  });
+  return svg;
+}
+
+/* ---------- panels ---------- */
+const LAYOUT=[
+  {t:'Voice',g:'voice',ids:[32,33,34,35]},
+  {t:'Oscillator 1',g:'osc',ids:[36,37,38,39,40,41,42,43,44]},
+  {t:'Oscillator 2',g:'osc',ids:[45,46,47,48,49,50,51,52,53]},
+  {t:'Mixer',g:'osc',ids:[54,55,56,57,58,59]},
+  {t:'Filter',g:'flt',ids:[63,60,62,64,66,61,65,67,68]},
+  {t:'Env 1 · Amp',g:'env',ids:[70,71,72,73,69],env:[0,70,71,72,73]},
+  {t:'Env 2 · Filter',g:'env',ids:[75,76,77,78,74],env:[0,75,76,77,78]},
+  {t:'Env 3',g:'env',ids:[79,80,81,82,83],env:[79,80,81,82,83]},
+  {t:'LFO 1',g:'lfo',ids:[84,90,88,'91:fade',89,85,86,87,'91:b0','91:b1','91:b2','91:b3']},
+  {t:'LFO 2',g:'lfo',ids:[92,98,96,'99:fade',97,93,94,95,'99:b0','99:b1','99:b2','99:b3']},
+  {t:'Distortion',g:'fx',ids:[116,100,117]},
+  {t:'Chorus / Phaser',g:'fx',ids:[118,120,102,119,121,122,123]},
+  {t:'EQ',g:'fx',ids:[105,106,107,108,109,110]},
+];
+function buildPanels(){
+  const root=$('#panels');
+  for(const sec of LAYOUT){
+    const sels=el('div',{class:'sels'}),kn=el('div',{class:'knobs'}),tg=el('div',{class:'toggles'});
+    for(const raw of sec.ids){
+      const id=String(raw),p=PARAMS[id];
+      if(p.toggle) tg.append(toggle(id));
+      else if(p.options) sels.append(select(id));
+      else kn.append(knob(id));
+    }
+    root.append(el('section',{class:'panel','data-g':sec.g},el('h2',{},sec.t),
+      sec.env?envSvg(sec.env):null,
+      sels.children.length?sels:null,kn,tg.children.length?tg:null));
+  }
+}
+function markInactive(knobId,syncId){
+  const k=knobById[knobId];if(!k) return;
+  watch([syncId],()=>k.classList.toggle('inactive',patch[syncId]!==0));
+}
+const mmViews=[];
+function buildModMatrix(){
+  const root=$('#mm');
+  root.append(el('div',{class:'mhead','aria-hidden':'true'},el('span',{},'#'),el('span',{},'Source 1'),el('span',{},'Source 2'),el('span',{},'Depth'),el('span',{},'Destination'),el('span',{},'In words')));
+  for(let i=0;i<20;i++){
+    const a=124+i*4;
+    const k=knob(String(a+2),{sm:true,label:false});
+    const txt=el('span',{class:'txt'});
+    const row=el('div',{class:'mrow'},el('span',{class:'n'},String(i+1).padStart(2,'0')),
+      select(String(a),{label:false,cls:'s1'}),select(String(a+1),{label:false,cls:'s2'}),k,select(String(a+3),{label:false,cls:'dst'}),txt);
+    row.querySelector('.s1').setAttribute('aria-label',`Slot ${i+1} source 1`);
+    row.querySelector('.s2').setAttribute('aria-label',`Slot ${i+1} source 2`);
+    row.querySelector('.dst').setAttribute('aria-label',`Slot ${i+1} destination`);
+    k.querySelector('.dial').setAttribute('aria-label',`Slot ${i+1} depth`);
+    mmViews.push(()=>{
+      const on=patch[a+2]!==64, v=patch[a+2]-64;
+      row.classList.toggle('on',on);row.classList.toggle('set',!modUnset(patch,i));
+      const knobs=[];for(let kk=0;kk<8;kk++)for(let r=0;r<4;r++) if(patch[slotAddr(kk,r)]===51+i) knobs.push(kk+1);
+      const src1=MOD_SRC[patch[a]],src2=patch[a+1]?MOD_SRC[patch[a+1]]:null,d=MOD_DST[patch[a+3]];
+      const who=patch[a]===0&&!src2?null:(patch[a]===0?src2:src1)+(src2&&patch[a]!==0?` (scaled by ${src2})`:'');
+      let line;
+      if(!on&&modUnset(patch,i)&&!knobs.length) line='—';
+      else if(!on) line=knobs.length?`${who??'Fixed offset'} → ${d}: comes in when you turn knob ${knobs.join(', ')}`:`Off: ${who??'fixed offset'} → ${d} with depth 0`;
+      else if(!who) line=`Fixed offset of ${sgn(v)} on ${d}`;
+      else line=`${who} moves ${d} by ${sgn(v)}`;
+      txt.replaceChildren(line,...(knobs.length&&on?[el('span',{class:'mk'},` · knob ${knobs.join(', ')}`)]:[]));
+      txt.title=txt.textContent;
+    });
+    root.append(row);
+  }
+}
+const stdViews=[];
+function macroDestSelect(id,k,label){
+  const p=PARAMS[id],S=STD[k];
+  const sel=el('select',{'aria-label':label});
+  sel.append(new Option(MACRO_DST[0],0));
+  const g1=el('optgroup',{label:`Standard · ${S.name}`}),g2=el('optgroup',{label:'Outside the standard'});
+  S.allowed.forEach(d=>g1.append(new Option(MACRO_DST[d],d)));
+  for(let d=1;d<MACRO_DST.length;d++) if(!S.allowed.includes(d)) g2.append(new Option(MACRO_DST[d],d));
+  sel.append(g1,g2);
+  sel.addEventListener('change',()=>setValue(p,+sel.value));
+  view(p.id,()=>{sel.value=p.get()});sel.value=p.get();
+  return sel;
+}
+function buildMacros(){
+  const root=$('#macros');
+  for(let k=0;k<8;k++){
+    const a=204+k*17,S=STD[k];
+    const pos=knob(String(a),{sm:true,label:false});
+    pos.querySelector('.dial').setAttribute('aria-label',`Macro ${k+1} position`);
+    const chip=el('span',{class:'chip'}),msgs=el('ul',{class:'msgs'});
+    const card=el('div',{class:'mac'},
+      el('div',{class:'mh'},el('span',{class:'kn'},String(k+1)),el('div',{class:'mt'},el('b',{},S.name),el('small',{},S.cw)),chip,pos),
+      msgs,
+      el('div',{class:'legend'},el('span'),el('span',{},'Destination'),el('span',{},'Start'),el('span',{},'End'),el('span',{},'Depth')));
+    for(let r=0;r<4;r++){
+      const s=a+1+r*4;
+      const dst=macroDestSelect(String(s),k,`Macro ${k+1} slot ${'ABCD'[r]} destination`);
+      const ks=[1,2,3].map(o=>{const kk=knob(String(s+o),{sm:true,label:false});kk.querySelector('.dial').setAttribute('aria-label',`Macro ${k+1} ${'ABCD'[r]} ${PARAMS[String(s+o)].label}`);return kk});
+      const row=el('div',{class:'mslot'},el('span',{class:'n'},'ABCD'[r]),dst,...ks);
+      watch([s],()=>row.classList.toggle('on',patch[s]!==0));
+      card.append(row);
+    }
+    stdViews.push(res=>{
+      const r=res.knobs[k];
+      card.dataset.level=r.level;
+      chip.className='chip '+r.level;chip.textContent=r.level==='ok'?'✓':r.level==='warn'?'!':'✕';
+      chip.title=r.level==='ok'?'Follows the standard':r.msgs.map(m=>m.text).join('\n');
+      msgs.replaceChildren(...r.msgs.map(m=>el('li',{class:m.level},m.text)));
+    });
+    root.append(card);
+  }
+}
+let stdRaf=0;
+function scheduleStd(){if(!stdRaf) stdRaf=requestAnimationFrame(()=>{stdRaf=0;updateStandard()})}
+function updateStandard(){
+  const res=checkPatch(patch);
+  stdViews.forEach(f=>f(res));
+  mmViews.forEach(f=>f());
+  updateUnsaved();
+  const n=res.errs+res.warns;
+  const lvl=res.errs?'err':(res.warns||res.meta.length)?'warn':'ok';
+  $('#stdChipDot').className='chip '+lvl;$('#stdChipDot').textContent=lvl==='ok'?'✓':lvl==='warn'?'!':'✕';
+  const miss=[!nameOf(patch)||nameOf(patch)===DEFAULT_NAME?'name':'',patch[16]===0?'category':''].filter(Boolean);
+  $('#stdChipTxt').textContent=res.ok?'Follows the standard':`Standard: `+[n?`${n} knob${n>1?'s':''} to fix`:'',miss.length?`missing ${miss.join(' and ')}`:''].filter(Boolean).join(' · ');
+  $('#stdSummary').textContent=res.ok?'Follows the standard':`${8-n}/8 knobs follow the standard`+(res.meta.length?' · '+res.meta.join(' · '):'');
+}
+function applyToCurrent(mode){
+  const b=patch.slice(),log=applyStandard(b,mode);
+  if(eq(b,patch)){toast(log.stuck.length?describeLog(log):'The knobs already follow the standard',log.stuck.length?'err':'ok');return}
+  loadPatch(b,{saved:false});
+  if(!sendPatch(true)) needsSysex(true);
+  toast((mode==='all'?'All knobs rewritten':describeLog(log))+' · Ctrl+Z to undo','ok',7000);
+}
+function showStdDialog(){
+  const t=$('#stdTbl');
+  t.replaceChildren(el('tr',{},el('th',{},'Knob'),el('th',{},'Function'),el('th',{},'Clockwise'),el('th',{},'Allowed destinations')),
+    ...STD.map((S,k)=>el('tr',{},el('td',{class:'k'},String(k+1)),el('td',{},el('b',{},S.name)),el('td',{},S.cw),
+      el('td',{style:'color:var(--muted)'},S.allowed.filter(d=>d<51).map(d=>MACRO_DST[d]).concat(S.allowed.some(d=>d>=51)?['Matrix slot 1–20 depth']:[]).join(', ')))));
+  $('#stdRules').replaceChildren(...STD_RULES.map(r=>el('li',{},r)));
+  $('#stdDlg').showModal();
+}
+function showBankStd(){
+  if(!bank) return;
+  const rows=[];let ok=0,n=0,meta=0;
+  bank.forEach((d,i)=>{
+    if(!d) return;n++;
+    const r=checkPatch(d);if(!r.errs&&!r.warns) ok++;if(r.meta.length) meta++;
+    const tr=el('tr',{class:'pick',title:'Open in the editor'},el('td',{class:'k'},String(i+1).padStart(2,'0')),el('td',{},slotName(d)),
+      el('td',{},el('div',{class:'dots'},...r.knobs.map((x,k)=>el('i',{class:x.level,title:`Knob ${k+1} ${STD[k].name}: ${x.level==='ok'?'OK':x.msgs.map(m=>m.text).join('; ')}`})))),
+      el('td',{style:'color:var(--muted)'},r.ok?'✓':[r.errs?`${r.errs} error${r.errs>1?'s':''}`:'',r.warns?`${r.warns} warning${r.warns>1?'s':''}`:'',...r.meta].filter(Boolean).join(' · ')));
+    tr.onclick=()=>{$('#bankStdDlg').close();bankPick(i)};
+    rows.push(tr);
+  });
+  $('#bankStdSum').textContent=`Knobs follow the standard in ${ok} of ${n} patches`+(meta?` · ${meta} patches without their own name or a category`:'')+'. Click a row to open it; the squares are knobs 1–8.';
+  $('#bankStdTbl').replaceChildren(el('tr',{},el('th',{},'Slot'),el('th',{},'Name'),el('th',{},'Knobs 1–8'),el('th',{},'Status')),...rows);
+  if(!$('#bankStdDlg').open) $('#bankStdDlg').showModal();
+}
+
+/* ---------- name, category, genre ---------- */
+function patchName(raw){
+  let s='';for(let i=0;i<16;i++){const c=patch[i];s+=c>=32&&c<127?String.fromCharCode(c):' '}
+  return raw?s.replace(/\s+$/,''):s.trim();
+}
+function setName(str){
+  const s=str.replace(/[^\x20-\x7E]/g,'?').slice(0,16).padEnd(16,' ');
+  for(let i=0;i<16;i++) patch[i]=s.charCodeAt(i);
+  needsSysex(true);scheduleHistory();scheduleStd();
+}
+
+/* ---------- history (undo/redo) ---------- */
+let hist=[],hi=-1,histTimer=0;
+function snapshot(){
+  const cur=patch.slice();
+  if(hi>=0&&eq(hist[hi],cur)) return;
+  hist=hist.slice(0,hi+1);hist.push(cur);if(hist.length>200)hist.shift();hi=hist.length-1;
+  updateButtons();save();
+}
+function scheduleHistory(){clearTimeout(histTimer);histTimer=setTimeout(snapshot,400)}
+function eq(a,b){for(let i=0;i<a.length;i++) if(a[i]!==b[i]) return false;return true}
+function undo(d){
+  clearTimeout(histTimer);snapshot();
+  const n=hi+d;if(n<0||n>=hist.length) return;
+  hi=n;patch.set(hist[hi]);refreshAll();updateButtons();save();
+  if(!sendPatch(true)) needsSysex(true);
+}
+
+/* ---------- loading ---------- */
+function loadPatch(data,{history=true,saved=true}={}){
+  patch.set(data.subarray?data.subarray(0,PATCH_LEN):data.slice(0,PATCH_LEN));
+  refreshAll();
+  if(history){clearTimeout(histTimer);snapshot()}
+  if(saved) markSaved();
+}
+
+/* ---------- unsaved changes ----------
+   "Saved" = equal to the last patch read from the Circuit, opened from a file, stored in a slot or exported. */
+let savedSnap=null;
+const isUnsaved=()=>!!savedSnap&&!eq(patch,savedSnap);
+function markSaved(){savedSnap=patch.slice();updateUnsaved();save()}
+function updateUnsaved(){$('#unsavedLbl').hidden=!isUnsaved()}
+function askBox(title,text,buttons){
+  return new Promise(res=>{
+    const d=$('#askDlg');
+    d.querySelector('h3').textContent=title;d.querySelector('p').textContent=text;
+    d.querySelector('.row').replaceChildren(...buttons.map(b=>{
+      const e=el('button',{class:'btn'+(b.pri?' pri':'')},b.label);e.onclick=()=>{d.close();res(b.key)};return e}));
+    d.oncancel=()=>res('cancel');
+    d.showModal();
+  });
+}
+/* ask before a user action replaces an unsaved patch */
+async function guard(what){
+  if(!isUnsaved()) return true;
+  const k=await askBox('Unsaved changes',
+    `“${patchName()||'untitled'}” has changes that are not stored in a Circuit slot or in a file. ${what} will replace it in the editor. You can still get it back with Ctrl+Z.`,
+    [{key:'cancel',label:'Cancel'},{key:'go',label:'Continue without saving'},{key:'export',label:'Export .syx and continue',pri:true}]);
+  if(k==='export'){exportSingle();return true}
+  return k==='go';
+}
+function exportSingle(){
+  download(fileSafe(patchName())+'.syx',sxReplaceCurrent(0,patch));
+  markSaved();toast('Exported as a single patch (.syx)','ok');
+}
+/* notice for events coming from the Circuit: the editor never overwrites an unsaved patch on its own */
+function notice(text,buttons){
+  $('#noticeTxt').textContent=text;
+  $('#noticeBtns').replaceChildren(...buttons.map(b=>{
+    const e=el('button',{class:'btn'+(b.pri?' pri':'')},b.label);
+    e.onclick=()=>{if(!b.keep) hideNotice();b.fn()};return e}),
+    el('button',{class:'btn ghost',title:'Close notice','aria-label':'Close notice',onclick:hideNotice},'×'));
+  $('#notice').hidden=false;
+}
+function hideNotice(){$('#notice').hidden=true}
+function autoRead(why){
+  if(!output||!sysexOK||bankBusy) return;
+  if(!isUnsaved()){readFromCircuit(true);return}
+  notice(`${why} The unsaved changes to “${patchName()||'untitled'}” are still in the editor.`,[
+    {label:'Export .syx',fn:exportSingle,keep:true},
+    {label:'Send my patch back to the Circuit',fn:()=>sendPatch(false)},
+    {label:'Load the Circuit patch',fn:()=>readFromCircuit(false),pri:true}]);
+}
+
+/* ---------- visible sections ---------- */
+const GROUPS=[['voice','Voice'],['osc','Oscillators'],['flt','Filter'],['env','Envelopes'],['lfo','LFO'],['fx','Effects'],['mm','Matrix'],['mac','Macros']];
+let hiddenGroups=new Set();
+function buildSecbar(){
+  try{hiddenGroups=new Set(JSON.parse(localStorage.getItem('circuit-editor:hidden')||'[]'))}catch(e){}
+  const bar=$('#secbar');
+  for(const [g,label] of GROUPS){
+    const b=el('button',{'data-g':g},label);
+    b.onclick=()=>{hiddenGroups.has(g)?hiddenGroups.delete(g):hiddenGroups.add(g);applyGroups()};
+    bar.append(b);
+  }
+  bar.append(el('button',{class:'all',onclick:()=>{hiddenGroups.clear();applyGroups()}},'All'));
+  applyGroups();
+}
+function applyGroups(){
+  document.querySelectorAll('#secbar button[data-g]').forEach(b=>b.setAttribute('aria-pressed',!hiddenGroups.has(b.dataset.g)));
+  document.querySelectorAll('main section[data-g]').forEach(s=>s.hidden=hiddenGroups.has(s.dataset.g));
+  try{localStorage.setItem('circuit-editor:hidden',JSON.stringify([...hiddenGroups]))}catch(e){}
+}
+function showGroup(g){if(hiddenGroups.has(g)){hiddenGroups.delete(g);applyGroups()}}
+let dirtySx=false;
+function needsSysex(v){dirtySx=v;$('#bSend').classList.toggle('pending',v)}
+
+/* ---------- file .syx ---------- */
+function splitSysex(bytes){
+  const out=[];let s=-1;
+  for(let i=0;i<bytes.length;i++){
+    if(bytes[i]===0xF0) s=i;
+    else if(bytes[i]===0xF7&&s>=0){out.push(bytes.subarray(s,i+1));s=-1}
+  }
+  return out;
+}
+function parsePatchMsg(m){
+  if(m.length!==PATCH_LEN+10) return null;
+  for(let i=0;i<6;i++) if(m[i]!==SX_HDR[i]) return null;
+  if(m[6]!==0&&m[6]!==1) return null;
+  return {cmd:m[6],loc:m[7],data:m.slice(9,9+PATCH_LEN)};
+}
+async function openFile(f){
+  const bytes=new Uint8Array(await f.arrayBuffer());
+  const msgs=splitSysex(bytes).map(parsePatchMsg).filter(Boolean);
+  if(!msgs.length){toast('No Circuit patch found in the file','err');return}
+  if(msgs.length===1){
+    loadPatch(msgs[0].data);needsSysex(true);
+    toast(`Loaded “${patchName()}”. Press “Send patch” to hear it`,'ok');
+    if(sendPatch(true)) toast(`Loaded and sent: “${patchName()}”`,'ok');
+    return;
+  }
+  const b=new Array(64).fill(null);
+  msgs.forEach((m,i)=>{const slot=m.cmd===1?m.loc:i;if(slot<64) b[slot]=m.data});
+  setBank(b);bankPick(b.findIndex(Boolean),false);
+  toast(`Bank loaded: ${b.filter(Boolean).length} patches`,'ok');
+}
+function download(name,bytes){
+  const url=URL.createObjectURL(new Blob([new Uint8Array(bytes)],{type:'application/octet-stream'}));
+  const a=el('a',{href:url,download:name});document.body.append(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),2000);
+}
+const fileSafe=s=>(s||'patch').replace(/[^\w\- ]+/g,'').trim().replace(/\s+/g,'_')||'patch';
+
+/* ---------- bank ---------- */
+let bank=null,bankBusy=false;
+const slotName=d=>d?String.fromCharCode(...d.slice(0,16)).replace(/[^\x20-\x7E]/g,' ').trim():'(empty)';
+function setBank(b){
+  bank=b;const s=$('#bankSel');s.innerHTML='';
+  b.forEach((d,i)=>s.append(new Option(`${String(i+1).padStart(2,'0')}  ${slotName(d)}`,i)));
+  $('#bankBar').classList.add('show');updateButtons();
+}
+let bankIdx=0;
+async function bankPick(i,ask=true){
+  if(!bank||i<0||!bank[i]) return;
+  if(ask&&!(await guard(`Bank slot ${i+1}`))){$('#bankSel').value=bankIdx;return}
+  bankIdx=i;$('#bankSel').value=i;
+  loadPatch(bank[i]);
+  if(!sendPatch(true)) needsSysex(true);
+}
+async function bankDownload(){
+  if(!(await confirmBox('Back up the bank',`The 64 slots will be read one after the other using Program Change on Synth ${synth+1}. At the end the editor patch is sent back to the Circuit. Unsaved changes on the Circuit will be lost.`,'Start backup'))) return;
+  bankBusy=true;updateButtons();
+  const keep=patch.slice(), keepSaved=savedSnap, b=new Array(64).fill(null);
+  let fail=0;
+  for(let n=0;n<64;n++){
+    toast(`Reading slot ${n+1}/64…`);
+    midiSend([0xC0|ch(),n]);await sleep(60);
+    try{b[n]=await requestDump(1200)}catch(e){fail++}
+    await sleep(25);
+  }
+  bankBusy=false;
+  loadPatch(keep,{history:false,saved:false});savedSnap=keepSaved;updateUnsaved();sendPatch(true);
+  setBank(b);
+  toast(fail?`Backup finished, ${fail} slots could not be read`:'Backup finished: 64 patches',fail?'err':'ok');
+  download('circuit-bank-backup.syx',bankBytes(b));
+}
+function bankBytes(b){
+  const out=[];b.forEach((d,i)=>out.push(...sxReplacePatch(i,d||defaultPatch())));return out;
+}
+async function bankSend(){
+  if(!(await confirmBox('Send bank to Circuit','All 64 slots in the Circuit memory will be overwritten with the bank. This cannot be undone: back up first.','Overwrite 64 slots'))) return;
+  bankBusy=true;updateButtons();
+  for(let n=0;n<64;n++){
+    if(bank[n]) midiSend(sxReplacePatch(n,bank[n]));
+    toast(`Writing slot ${n+1}/64…`);await sleep(40);
+  }
+  bankBusy=false;updateButtons();toast('Bank written to the Circuit','ok');
+}
+
+/* ---------- dialog ---------- */
+function confirmBox(title,text,okLabel){
+  return new Promise(res=>{
+    const d=$('#slotDlg');
+    d.querySelector('h3').textContent=title;d.querySelector('p').textContent=text;
+    $('#slotPick').hidden=true;$('#slotOk').textContent=okLabel;
+    const done=v=>{d.close();res(v)};
+    $('#slotOk').onclick=()=>done(true);$('#slotCancel').onclick=()=>done(false);
+    d.oncancel=()=>res(false);
+    d.showModal();
+  });
+}
+function storeDialog(){
+  const d=$('#slotDlg'),s=$('#slotPick');
+  d.querySelector('h3').textContent='Store in the Circuit memory';
+  d.querySelector('p').textContent=`“${patchName()||'(untitled)'}” will be written to flash memory and will replace the patch in the chosen slot.`;
+  s.hidden=false;s.innerHTML='';
+  for(let i=0;i<64;i++) s.append(new Option(`Slot ${String(i+1).padStart(2,'0')}`+(bank&&bank[i]?`  —  ${slotName(bank[i])}`:''),i));
+  s.value=currentSlot??0;
+  $('#slotOk').textContent='Overwrite slot';
+  $('#slotOk').onclick=()=>{
+    const n=+s.value;d.close();
+    midiSend(sxReplacePatch(n,patch));
+    if(bank){bank[n]=patch.slice();setBank(bank);$('#bankSel').value=n}
+    currentSlot=n;updateSlotLabel();markSaved();
+    toast(`Stored in slot ${n+1}`,'ok');
+  };
+  $('#slotCancel').onclick=()=>d.close();
+  d.oncancel=null;
+  d.showModal();
+}
+
+/* ---------- misc ---------- */
+function setStatus(t,kind){$('#status').textContent=t;$('#dot').className='dot '+(kind||'')}
+function flashDot(){const d=$('#dot');d.classList.remove('act');void d.offsetWidth;d.classList.add('act')}
+let toastT=0;
+function toast(msg,kind='',ms=3200){
+  const t=$('#toast');t.textContent=msg;t.className='toast show '+kind;
+  clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),ms);
+}
+function showBanner(t){$('#bannerTxt').textContent=t;$('#banner').hidden=false}
+function updateSlotLabel(){$('#slotLbl').textContent=currentSlot!=null?`slot ${String(currentSlot+1).padStart(2,'0')}`:''}
+function updateButtons(){
+  const sx=!!output&&sysexOK&&!bankBusy;
+  for(const id of ['bRead','bSend','bStore','bBankDl']) $('#'+id).disabled=!sx;
+  $('#bBankStd').disabled=!bank;
+  $('#bBankSend').disabled=!sx||!bank;
+  $('#bUndo').disabled=hi<=0;$('#bRedo').disabled=hi>=hist.length-1;
+}
+function setSynth(n,read=true){
+  synth=n;nrpnM=nrpnL=null;currentSlot=null;updateSlotLabel();
+  document.body.classList.toggle('synth2',n===1);
+  $('#syn1').setAttribute('aria-pressed',n===0);$('#syn2').setAttribute('aria-pressed',n===1);
+  save();
+  if(read) readFromCircuit(true);
+}
+function mutate(){
+  const amt=.12;
+  for(const p of Object.values(PARAMS)){
+    if(p.options||p.toggle||p.addr==null||p.addr>=124) continue;
+    if([54,58,59,72].includes(p.addr)) continue; // output levels: leave alone
+    const r=p.max-p.min, v=p.get()+(Math.random()*2-1)*amt*r;
+    p.put(clamp(Math.round(v),p.min,p.max));
+  }
+  refreshAll();snapshot();
+  if(!sendPatch(true)) needsSysex(true);
+}
+function save(){try{localStorage.setItem('circuit-editor',JSON.stringify({p:[...patch],s:synth,saved:savedSnap?[...savedSnap]:null}))}catch(e){}}
+function restore(){
+  try{const o=JSON.parse(localStorage.getItem('circuit-editor')||'null');
+    if(o&&Array.isArray(o.p)&&o.p.length===PATCH_LEN){patch.set(o.p);synth=o.s===1?1:0;
+      if(Array.isArray(o.saved)&&o.saved.length===PATCH_LEN) savedSnap=Uint8Array.from(o.saved);return true}}catch(e){}
+  return false;
+}
+
+/* ---------- keyboard ---------- */
+let baseNote=48;const held=new Map();
+const NOTE_NAMES=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+const KEYMAP='awsedftgyhujkolp;';
+function noteOn(n){if(held.has(n))return;held.set(n,1);midiSend([0x90|ch(),n,+$('#vel').value]);keyEl(n)?.classList.add('on')}
+function noteOff(n){if(!held.has(n))return;held.delete(n);midiSend([0x80|ch(),n,0]);keyEl(n)?.classList.remove('on')}
+const keyEl=n=>document.querySelector(`#keys [data-n="${n}"]`);
+function buildKeys(){
+  const root=$('#keys');root.innerHTML='';
+  const whites=[];for(let i=0;i<=24;i++) if(![1,3,6,8,10].includes(i%12)) whites.push(i);
+  const W=100/whites.length;
+  whites.forEach((off,wi)=>{
+    const n=baseNote+off;
+    const k=el('div',{class:'kw','data-n':n,style:`left:${wi*W}%;width:${W}%`},off%12===0?el('span',{},NOTE_NAMES[0]+(Math.floor(n/12)-1)):null);
+    root.append(k);
+  });
+  for(let off=0;off<24;off++){
+    if(![1,3,6,8,10].includes(off%12)) continue;
+    const wi=whites.indexOf(off-1)+1;
+    root.append(el('div',{class:'kbk','data-n':baseNote+off,style:`left:${wi*W-W*.32}%;width:${W*.64}%`}));
+  }
+  $('#octLbl').textContent='C'+(Math.floor(baseNote/12)-1);
+}
+function allOff(){for(const n of [...held.keys()]) noteOff(n)}
+
+/* =====================================================================
+   Startup
+   ===================================================================== */
+function init(){
+  CATS.forEach((c,i)=>$('#pcat').append(new Option(c,i)));
+  GENRES.forEach((g,i)=>$('#pgen').append(new Option(g,i)));
+  if(!restore()) patch.set(defaultPatch());
+  if(!savedSnap) savedSnap=patch.slice();
+  buildPanels();buildModMatrix();buildMacros();buildSecbar();
+  $('#foot').textContent=`Knobwise · version ${APP_VERSION} (${APP_DATE}) · patch editor for the original Novation Circuit · not affiliated with Novation or Focusrite`;
+  // rate/delay dimmed while the matching sync is on
+  [[89,90],[87,88],[97,98],[95,96],[119,120]].forEach(([k,sy])=>markInactive(String(k),sy));
+  setSynth(synth,false);
+  refreshAll();snapshot();buildKeys();
+
+  $('#connect').onclick=()=>connectMIDI(false);
+  $('#inSel').onchange=$('#outSel').onchange=bindPorts;
+  const switchSynth=async n=>{if(n===synth) return;if(output&&sysexOK&&!(await guard(`Switching to Synth ${n+1}`))) return;hideNotice();setSynth(n)};
+  $('#syn1').onclick=()=>switchSynth(0);$('#syn2').onclick=()=>switchSynth(1);
+  $('#pname').addEventListener('input',e=>setName(e.target.value));
+  $('#pcat').onchange=e=>{patch[16]=+e.target.value;needsSysex(true);scheduleHistory();scheduleStd()};
+  $('#pgen').onchange=e=>{patch[17]=+e.target.value;needsSysex(true);scheduleHistory()};
+  $('#bRead').onclick=async()=>{if(await guard('Reading from the Circuit')) readFromCircuit(false)};
+  $('#bSend').onclick=()=>sendPatch(false);
+  $('#bStore').onclick=storeDialog;
+  $('#bOpen').onclick=async()=>{if(await guard('The file you open')) $('#file').click()};
+  $('#file').onchange=e=>{const f=e.target.files[0];if(f)openFile(f);e.target.value=''};
+  $('#bExport').onclick=exportSingle;
+  $('#bBankDl').onclick=bankDownload;
+  $('#bankSel').onchange=e=>bankPick(+e.target.value);
+  $('#bBankPut').onclick=()=>{const n=+$('#bankSel').value;bank[n]=patch.slice();setBank(bank);$('#bankSel').value=n;toast(`Bank slot ${n+1} updated`,'ok')};
+  $('#bBankExport').onclick=()=>download('circuit-bank.syx',bankBytes(bank));
+  $('#bBankSend').onclick=bankSend;
+  $('#bBankClose').onclick=()=>{bank=null;$('#bankBar').classList.remove('show');updateButtons()};
+  $('#bStdInfo').onclick=showStdDialog;
+  $('#stdClose').onclick=()=>$('#stdDlg').close();
+  $('#stdChip').onclick=()=>{showGroup('mac');$('#macros').closest('section').scrollIntoView({behavior:'smooth',block:'start'})};
+  $('#bStdFill').onclick=()=>applyToCurrent('fill');
+  $('#bStdAll').onclick=()=>applyToCurrent('all');
+  $('#bBankStd').onclick=showBankStd;
+  $('#bankStdClose').onclick=()=>$('#bankStdDlg').close();
+  $('#bankStdFill').onclick=()=>{
+    let c=0;bank.forEach(d=>{if(!d) return;const before=d.slice();applyStandard(d,'fill');if(!eq(before,d))c++});
+    setBank(bank);showBankStd();
+    toast(c?`Standard applied to ${c} bank patches. Export or send the bank to keep it.`:'The bank already follows the standard','ok');
+  };
+  $('#bUndo').onclick=()=>undo(-1);$('#bRedo').onclick=()=>undo(1);
+  $('#bMutate').onclick=mutate;
+  $('#bInit').onclick=async()=>{if(!(await guard('The initial patch'))) return;loadPatch(defaultPatch());if(!sendPatch(true))needsSysex(true);toast('Initial patch')};
+  $('#octDn').onclick=()=>{allOff();baseNote=Math.max(0,baseNote-12);buildKeys()};
+  $('#octUp').onclick=()=>{allOff();baseNote=Math.min(96,baseNote+12);buildKeys()};
+  $('#panic').onclick=()=>{allOff();midiSend([0xB0|ch(),123,0,0xB0|ch(),120,0])};
+  $('#kbToggle').onclick=()=>{const c=document.body.classList.toggle('kb-collapsed');$('#kbToggle').textContent=c?'Show':'Hide';document.documentElement.style.setProperty('--kb-h',c?'40px':'118px')};
+
+  const keys=$('#keys');
+  keys.addEventListener('pointerdown',e=>{const k=e.target.closest('[data-n]');if(!k)return;keys.setPointerCapture(e.pointerId);keys._n=+k.dataset.n;noteOn(keys._n);e.preventDefault()});
+  keys.addEventListener('pointermove',e=>{if(keys._n==null)return;const t=document.elementFromPoint(e.clientX,e.clientY);const k=t&&t.closest&&t.closest('#keys [data-n]');if(k&&+k.dataset.n!==keys._n){noteOff(keys._n);keys._n=+k.dataset.n;noteOn(keys._n)}});
+  const up=()=>{if(keys._n!=null){noteOff(keys._n);keys._n=null}};
+  keys.addEventListener('pointerup',up);keys.addEventListener('pointercancel',up);
+
+  const typing=t=>t&&(t.tagName==='INPUT'||t.tagName==='SELECT'||t.tagName==='TEXTAREA');
+  window.addEventListener('keydown',e=>{
+    if(typing(e.target)||document.querySelector('dialog[open]')) return;
+    if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='z'){undo(e.shiftKey?1:-1);e.preventDefault();return}
+    if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==='y'){undo(1);e.preventDefault();return}
+    if(e.ctrlKey||e.metaKey||e.altKey||e.repeat) return;
+    const i=KEYMAP.indexOf(e.key.toLowerCase());
+    if(i>=0){noteOn(baseNote+i);e.preventDefault();return}
+    if(e.key==='z'){$('#octDn').click()} else if(e.key==='x'){$('#octUp').click()}
+  });
+  window.addEventListener('keyup',e=>{const i=KEYMAP.indexOf(e.key.toLowerCase());if(i>=0) noteOff(baseNote+i)});
+  window.addEventListener('blur',allOff);
+
+  updateButtons();
+  // reconnect automatically if permission was already granted
+  if(navigator.permissions&&navigator.requestMIDIAccess){
+    navigator.permissions.query({name:'midi',sysex:true}).then(r=>{if(r.state==='granted') connectMIDI(true)}).catch(()=>{});
+  }else if(!navigator.requestMIDIAccess){
+    setStatus('Web MIDI not available','err');
+  }
+}
+init();
+</script>
+</body>
+</html>
