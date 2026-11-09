@@ -2,13 +2,15 @@
 
 **Patch editor and macro knob standard for the original Novation Circuit.**
 
+**▶ Open Knobwise: https://ridepo.github.io/Knobwise/**
+
 On the original Circuit, every patch assigns the 8 macro knobs differently, so you never know what a knob will do until you turn it. Knobwise is a browser-based patch editor that also defines a **knob standard**: knob N always has the same function, in every patch, and clockwise always means “more”.
 
 Knobwise is an independent project. It is not affiliated with, endorsed by or supported by Novation or Focusrite.
 
 ## Use it
 
-Open the editor in **Chrome, Edge or Opera** (they support Web MIDI), connect the Circuit over **USB**, press **Connect MIDI** and allow MIDI and SysEx when the browser asks.
+Open [the editor](https://ridepo.github.io/Knobwise/) in **Chrome, Edge or Opera** (they support Web MIDI), connect the Circuit over **USB**, press **Connect MIDI** and allow MIDI and SysEx when the browser asks.
 
 You can also download `index.html` and open it from your computer: it is a single file with no external dependencies and works offline.
 
